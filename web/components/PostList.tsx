@@ -53,9 +53,7 @@ function PostCard({ post }: { post: Post }) {
       <p className="text-gray-500 text-xs mb-3">
         by {shortAddress(fields.author)} · チップ合計: {Number(fields.tip_balance) / 1e9} SUI
       </p>
-      <p className="text-gray-300 text-sm mb-4 line-clamp-3">
-        {decodeBytes(fields.content_hash)}
-      </p>
+      <p className="text-gray-500 text-xs mb-4">記事を読む →</p>
       {account && account.address !== fields.author && (
         <button
           onClick={(e) => { e.stopPropagation(); handleTip(); }}

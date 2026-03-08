@@ -4,8 +4,11 @@ import { useSuiClientQuery, useSignAndExecuteTransaction, useCurrentAccount } fr
 import { Transaction } from "@mysten/sui/transactions";
 import { PACKAGE_ID } from "@/lib/sui";
 import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+const WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
 
 function decodeBytes(bytes: number[]): string {
   return new TextDecoder().decode(new Uint8Array(bytes));
@@ -20,11 +23,37 @@ export default function PostPage() {
   const router = useRouter();
   const account = useCurrentAccount();
   const { mutate: signAndExecute, isPending } = useSignAndExecuteTransaction();
+  const [content, setContent] = useState<string>("");
+  const [contentLoading, setContentLoading] = useState(false);
 
   const { data, isLoading } = useSuiClientQuery("getObject", {
     id,
     options: { showContent: true },
   });
+
+  useEffect(() => {
+    if (!data?.data) return;
+    const fields = (data.data.content as any).fields;
+    const blobId = decodeBytes(fields.content_hash);
+
+    // Walrus blob IDかどうか判定（44文字以上の英数字）
+    if (blobId.length >= 20 && /^[A-Za-z0-9_-]+$/.test(blobId)) {
+      setContentLoading(true);
+      fetch(`${WALRUS_AGGREGATOR}/v1/blobs/${blobId}`)
+        .then((r) => r.text())
+        .then((text) => {
+          setContent(text);
+          setContentLoading(false);
+        })
+        .catch(() => {
+          setContent(blobId); // フェッチ失敗時はblob IDをそのまま表示
+          setContentLoading(false);
+        });
+    } else {
+      // 旧形式（直接テキスト）
+      setContent(blobId);
+    }
+  }, [data]);
 
   if (isLoading) return (
     <div className="max-w-2xl mx-auto px-4 py-8 text-gray-400">読み込み中...</div>
@@ -36,7 +65,6 @@ export default function PostPage() {
 
   const fields = (data.data.content as any).fields;
   const title = decodeBytes(fields.title);
-  const content = decodeBytes(fields.content_hash);
   const author = fields.author;
   const tipBalance = Number(fields.tip_balance) / 1e9;
 
@@ -65,13 +93,18 @@ export default function PostPage() {
         <p className="text-gray-500 text-sm mb-6">
           by {shortAddress(author)} · チップ合計: {tipBalance} SUI
         </p>
+
         <div className="prose prose-invert prose-sm max-w-none mb-8
           prose-headings:text-white prose-p:text-gray-200 prose-a:text-blue-400
           prose-code:text-green-400 prose-code:bg-gray-800 prose-code:px-1 prose-code:rounded
           prose-pre:bg-gray-800 prose-pre:border prose-pre:border-gray-700
           prose-blockquote:border-gray-600 prose-blockquote:text-gray-400
           prose-strong:text-white prose-li:text-gray-200">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          {contentLoading ? (
+            <p className="text-gray-500 text-sm">コンテンツを読み込み中...</p>
+          ) : (
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          )}
         </div>
 
         {account && account.address !== author && (
