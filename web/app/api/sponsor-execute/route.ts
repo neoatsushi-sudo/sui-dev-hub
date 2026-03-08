@@ -8,29 +8,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Enoki not configured" }, { status: 500 });
     }
 
-    const { txKindBytes, sender } = await req.json();
+    const { digest, signature } = await req.json();
 
-    const res = await fetch(`${ENOKI_API}/transaction-blocks/sponsor`, {
+    const res = await fetch(`${ENOKI_API}/transaction-blocks/execute`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${process.env.ENOKI_PRIVATE_KEY}`,
       },
-      body: JSON.stringify({
-        network: "testnet",
-        transactionBlockKindBytes: txKindBytes,
-        sender,
-      }),
+      body: JSON.stringify({ digest, signature }),
     });
 
     if (!res.ok) {
       const err = await res.text();
-      return NextResponse.json({ error: `Enoki sponsor failed: ${err}` }, { status: res.status });
+      return NextResponse.json({ error: `Enoki execute failed: ${err}` }, { status: res.status });
     }
 
-    const { data } = await res.json();
-    // data: { bytes, digest }
-    return NextResponse.json({ txBytes: data.bytes, digest: data.digest });
+    const result = await res.json();
+    return NextResponse.json(result);
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

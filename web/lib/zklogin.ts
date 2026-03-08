@@ -2,10 +2,7 @@ import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import {
   generateNonce,
   generateRandomness,
-  getExtendedEphemeralPublicKey,
-  jwtToAddress,
   getZkLoginSignature,
-  genAddressSeed,
 } from "@mysten/sui/zklogin";
 import { Transaction } from "@mysten/sui/transactions";
 
@@ -16,15 +13,13 @@ export interface ZkLoginSession {
   maxEpoch: number;
   ephemeralPrivKey: string;
   zkProof: ZkProofInputs;
-  userSalt: string;
-  sub: string;
-  aud: string;
 }
 
 interface ZkProofInputs {
   proofPoints: unknown;
   issBase64Details: unknown;
   headerBase64: string;
+  addressSeed: string;
 }
 
 function toB64(bytes: Uint8Array): string {
@@ -37,7 +32,7 @@ function fromB64(str: string): Uint8Array {
 
 export async function initiateGoogleLogin(
   clientId: string,
-  suiClient: { getLatestSuiSystemState: () => Promise<{ epoch: string | number }>, executeTransactionBlock: (...args: any[]) => Promise<any> }
+  suiClient: { getLatestSuiSystemState: () => Promise<{ epoch: string | number }> }
 ) {
   const keypair = new Ed25519Keypair();
   const randomness = generateRandomness();
@@ -74,34 +69,18 @@ export async function processOAuthCallback(jwt: string): Promise<ZkLoginSession>
     keypair = Ed25519Keypair.fromSecretKey(fromB64(privKeyRaw));
   }
 
-  // Decode JWT payload
-  const payload = JSON.parse(atob(jwt.split(".")[1]));
-  const sub = payload.sub as string;
-  const aud = (Array.isArray(payload.aud) ? payload.aud[0] : payload.aud) as string;
+  // Enoki が管理する ephemeralPublicKey 形式
+  const ephemeralPublicKey = keypair.getPublicKey().toSuiPublicKey();
 
-  // Get or generate deterministic salt
-  let userSalt = localStorage.getItem(`zk_salt_${sub}`);
-  if (!userSalt) {
-    const saltBytes = crypto.getRandomValues(new Uint8Array(16));
-    userSalt = String(
-      BigInt("0x" + Array.from(saltBytes).map((b) => b.toString(16).padStart(2, "0")).join("")) % BigInt("21888242871839275222246405745257275088548364400416034343698204186575808495617")
-    );
-    localStorage.setItem(`zk_salt_${sub}`, userSalt);
-  }
-
-  const address = jwtToAddress(jwt, userSalt, false);
-  const extEphKey = getExtendedEphemeralPublicKey(keypair.getPublicKey());
-
+  // Enoki に ZK proof と address を依頼
   const proverRes = await fetch(PROVER_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       jwt,
-      extendedEphemeralPublicKey: extEphKey,
+      ephemeralPublicKey,
       maxEpoch,
-      jwtRandomness: randomness,
-      salt: userSalt,
-      keyClaimName: "sub",
+      randomness,
     }),
   });
 
@@ -110,16 +89,13 @@ export async function processOAuthCallback(jwt: string): Promise<ZkLoginSession>
     throw new Error(`ZK proof failed: ${err}`);
   }
 
-  const zkProof = await proverRes.json() as ZkProofInputs;
+  const { proof, address } = await proverRes.json();
 
   const session: ZkLoginSession = {
     address,
     maxEpoch,
     ephemeralPrivKey: privKeyRaw,
-    zkProof,
-    userSalt,
-    sub,
-    aud,
+    zkProof: proof,
   };
 
   localStorage.setItem("zk_session", JSON.stringify(session));
@@ -146,13 +122,13 @@ export function clearZkLoginSession() {
 export async function zkLoginSponsoredSignAndExecute(
   session: ZkLoginSession,
   tx: Transaction,
-  suiClient: { executeTransactionBlock: (...args: any[]) => Promise<any> }
+  _suiClient?: unknown
 ) {
-  // Build just the transaction kind (no gas needed)
+  // トランザクション種別バイトのみビルド（ガス不要）
   const txKindBytes = await tx.build({ onlyTransactionKind: true });
   const txKindB64 = Buffer.from(txKindBytes).toString("base64");
 
-  // Request sponsor to pay gas
+  // Enoki にガス代スポンサーを依頼
   const sponsorRes = await fetch("/api/sponsor", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -164,10 +140,10 @@ export async function zkLoginSponsoredSignAndExecute(
     throw new Error(`Sponsor failed: ${err}`);
   }
 
-  const { txBytes, sponsorSignature } = await sponsorRes.json();
+  const { txBytes, digest } = await sponsorRes.json();
   const fullTxBytes = new Uint8Array(Buffer.from(txBytes, "base64"));
 
-  // Sign with zkLogin ephemeral key
+  // ephemeral key で署名
   let keypair: Ed25519Keypair;
   try {
     keypair = Ed25519Keypair.fromSecretKey(session.ephemeralPrivKey);
@@ -177,25 +153,27 @@ export async function zkLoginSponsoredSignAndExecute(
 
   const { signature: userSignature } = await keypair.signTransaction(fullTxBytes);
 
-  const addressSeed = genAddressSeed(
-    BigInt(session.userSalt),
-    "sub",
-    session.sub,
-    session.aud
-  ).toString();
-
+  // Enoki が addressSeed を管理しているのでそのまま proof を使用
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const zkLoginSignature = getZkLoginSignature({
-    inputs: { ...session.zkProof, addressSeed } as any,
+    inputs: session.zkProof as any,
     maxEpoch: session.maxEpoch,
     userSignature,
   });
 
-  return suiClient.executeTransactionBlock({
-    transactionBlock: fullTxBytes,
-    signature: [zkLoginSignature, sponsorSignature],
-    options: { showEffects: true },
+  // Enoki の execute エンドポイント（スポンサー署名は Enoki が保持）
+  const executeRes = await fetch("/api/sponsor-execute", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ digest, signature: zkLoginSignature }),
   });
+
+  if (!executeRes.ok) {
+    const err = await executeRes.text();
+    throw new Error(`Execute failed: ${err}`);
+  }
+
+  return executeRes.json();
 }
 
 export async function zkLoginSignAndExecute(
@@ -215,16 +193,9 @@ export async function zkLoginSignAndExecute(
   const txBytes = await tx.build({ client: suiClient as any });
   const { signature: userSignature } = await keypair.signTransaction(txBytes);
 
-  const addressSeed = genAddressSeed(
-    BigInt(session.userSalt),
-    "sub",
-    session.sub,
-    session.aud
-  ).toString();
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const zkLoginSignature = getZkLoginSignature({
-    inputs: { ...session.zkProof, addressSeed } as any,
+    inputs: session.zkProof as any,
     maxEpoch: session.maxEpoch,
     userSignature,
   });
