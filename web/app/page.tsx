@@ -4,6 +4,7 @@ import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
 import { CreatePost } from "@/components/CreatePost";
 import { PostList } from "@/components/PostList";
 import { ZkLoginButton } from "@/components/ZkLoginButton";
+import { ProfileEditor } from "@/components/ProfileEditor";
 import { useZkLogin } from "@/context/ZkLoginContext";
 
 export default function Home() {
@@ -26,7 +27,8 @@ export default function Home() {
       </header>
 
       {canPost && (
-        <div className="mb-8">
+        <div className="space-y-6 mb-8">
+          <ProfileEditor />
           <CreatePost />
         </div>
       )}

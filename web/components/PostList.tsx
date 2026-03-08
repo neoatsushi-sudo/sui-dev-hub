@@ -6,7 +6,8 @@ import { PACKAGE_ID, OLD_PACKAGE_ID } from "@/lib/sui";
 import { useRouter } from "next/navigation";
 import { useZkLogin } from "@/context/ZkLoginContext";
 import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { fetchUserProfile, ProfileData } from "@/lib/profile";
 
 type Post = {
   objectId: string;
@@ -34,9 +35,14 @@ function PostCard({ post }: { post: Post }) {
   const suiClient = useSuiClient();
   const { mutate: signAndExecute, isPending: walletPending } = useSignAndExecuteTransaction();
   const [zkPending, setZkPending] = useState(false);
+  const [authorProfile, setAuthorProfile] = useState<ProfileData | null>(null);
   const router = useRouter();
   const fields = post.content.fields;
   const isPending = walletPending || zkPending;
+
+  useEffect(() => {
+    fetchUserProfile(suiClient, fields.author).then(setAuthorProfile);
+  }, [suiClient, fields.author]);
 
   const isAuthor =
     (account && account.address === fields.author) ||
@@ -90,8 +96,15 @@ function PostCard({ post }: { post: Post }) {
       <h3 className="text-white font-semibold text-lg mb-1">
         {decodeBytes(fields.title)}
       </h3>
-      <p className="text-gray-500 text-xs mb-3">
-        by {shortAddress(fields.author)} · チップ合計: {Number(fields.tip_balance) / 1e9} SUI
+      <p className="text-gray-500 text-xs mb-3 flex items-center gap-2">
+        {authorProfile ? (
+          <span className="bg-gray-800 text-gray-300 px-2 py-0.5 rounded-md font-medium text-[10px]">
+            @{authorProfile.username}
+          </span>
+        ) : (
+          <span>by {shortAddress(fields.author)}</span>
+        )}
+        <span>· チップ合計: {Number(fields.tip_balance) / 1e9} SUI</span>
       </p>
       <p className="text-gray-500 text-xs mb-4">記事を読む →</p>
       <div className="flex items-center gap-2">

@@ -28,6 +28,18 @@ module sui_content_platform::platform {
 
     // ===== Events =====
 
+    public struct ProfileCreated has copy, drop {
+        profile_id: ID,
+        owner: address,
+        username: vector<u8>,
+    }
+
+    public struct ProfileUpdated has copy, drop {
+        profile_id: ID,
+        owner: address,
+        username: vector<u8>,
+    }
+
     public struct PostCreated has copy, drop {
         post_id: ID,
         author: address,
@@ -53,13 +65,40 @@ module sui_content_platform::platform {
         bio: vector<u8>,
         ctx: &mut TxContext,
     ): Profile {
-        Profile {
-            id: object::new(ctx),
+        let profile_id = object::new(ctx);
+        let id_copy = object::uid_to_inner(&profile_id);
+        let profile = Profile {
+            id: profile_id,
             owner: ctx.sender(),
-            username,
-            bio,
+            username: username,
+            bio: bio,
             total_earned: 0,
-        }
+        };
+        
+        event::emit(ProfileCreated {
+            profile_id: id_copy,
+            owner: ctx.sender(),
+            username: profile.username,
+        });
+        
+        profile
+    }
+
+    public fun edit_profile(
+        profile: &mut Profile,
+        new_username: vector<u8>,
+        new_bio: vector<u8>,
+        ctx: &mut TxContext,
+    ) {
+        assert!(profile.owner == ctx.sender(), ENotAuthor);
+        profile.username = new_username;
+        profile.bio = new_bio;
+
+        event::emit(ProfileUpdated {
+            profile_id: object::id(profile),
+            owner: ctx.sender(),
+            username: profile.username,
+        });
     }
 
     public fun create_post(

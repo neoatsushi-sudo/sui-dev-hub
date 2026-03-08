@@ -16,3 +16,5 @@ Thumbs.db
 
 # Sui
 contracts/.sui/
+*.exe
+*.tgz

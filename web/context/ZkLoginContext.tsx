@@ -16,11 +16,9 @@ const ZkLoginContext = createContext<ZkLoginContextType>({
 });
 
 export function ZkLoginProvider({ children }: { children: ReactNode }) {
-  const [session, setSessionState] = useState<ZkLoginSession | null>(null);
-
-  useEffect(() => {
-    setSessionState(loadZkLoginSession());
-  }, []);
+  const [session, setSessionState] = useState<ZkLoginSession | null>(
+    typeof window !== "undefined" ? loadZkLoginSession() : null
+  );
 
   const setSession = (s: ZkLoginSession | null) => {
     setSessionState(s);

@@ -32,7 +32,7 @@ export default function AuthPage() {
         setStatus(`エラー: ${err.message}`);
         setTimeout(() => router.push("/"), 3000);
       });
-  }, []);
+  }, [router, setSession]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">

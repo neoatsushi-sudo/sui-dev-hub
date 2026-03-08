@@ -9,6 +9,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useZkLogin } from "@/context/ZkLoginContext";
 import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
+import { fetchUserProfile, ProfileData } from "@/lib/profile";
 
 const WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
 
@@ -30,6 +31,7 @@ export default function PostPage() {
   const [zkPending, setZkPending] = useState(false);
   const [content, setContent] = useState<string>("");
   const [contentLoading, setContentLoading] = useState(false);
+  const [authorProfile, setAuthorProfile] = useState<ProfileData | null>(null);
   const isPending = walletPending || zkPending;
 
   const { data, isLoading } = useSuiClientQuery("getObject", {
@@ -39,6 +41,7 @@ export default function PostPage() {
 
   useEffect(() => {
     if (!data?.data) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fields = (data.data.content as any).fields;
     const blobId = decodeBytes(fields.content_hash);
 
@@ -57,7 +60,10 @@ export default function PostPage() {
     } else {
       setContent(blobId);
     }
-  }, [data]);
+    
+    // Fetch profile
+    fetchUserProfile(suiClient, fields.author).then(setAuthorProfile);
+  }, [data, suiClient]);
 
   if (isLoading) return (
     <div className="max-w-2xl mx-auto px-4 py-8 text-gray-400">読み込み中...</div>
@@ -125,8 +131,15 @@ export default function PostPage() {
 
       <article className="bg-gray-900 rounded-xl p-6 border border-gray-800">
         <h1 className="text-2xl font-bold text-white mb-2">{title}</h1>
-        <p className="text-gray-500 text-sm mb-6">
-          by {shortAddress(author)} · チップ合計: {tipBalance} SUI
+        <p className="text-gray-500 text-sm mb-6 flex items-center gap-2">
+          {authorProfile ? (
+            <span className="bg-gray-800 text-gray-300 px-2 py-0.5 rounded-md font-medium text-[10px]">
+              @{authorProfile.username}
+            </span>
+          ) : (
+            <span>by {shortAddress(author)}</span>
+          )}
+          <span>· チップ合計: {tipBalance} SUI</span>
         </p>
 
         <div className="prose prose-invert prose-sm max-w-none mb-8
