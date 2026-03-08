@@ -89,7 +89,7 @@ export async function processOAuthCallback(jwt: string): Promise<ZkLoginSession>
     localStorage.setItem(`zk_salt_${sub}`, userSalt);
   }
 
-  const address = jwtToAddress(jwt, userSalt, "sub");
+  const address = jwtToAddress(jwt, userSalt, false);
   const extEphKey = getExtendedEphemeralPublicKey(keypair.getPublicKey());
 
   const proverRes = await fetch(PROVER_URL, {
