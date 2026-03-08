@@ -1,12 +1,14 @@
 "use client";
 
-import { useSuiClientQuery, useSignAndExecuteTransaction, useCurrentAccount } from "@mysten/dapp-kit";
+import { useSuiClientQuery, useSignAndExecuteTransaction, useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { PACKAGE_ID } from "@/lib/sui";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useZkLogin } from "@/context/ZkLoginContext";
+import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
 
 const WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
 
@@ -22,9 +24,13 @@ export default function PostPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const account = useCurrentAccount();
-  const { mutate: signAndExecute, isPending } = useSignAndExecuteTransaction();
+  const { session } = useZkLogin();
+  const suiClient = useSuiClient();
+  const { mutate: signAndExecute, isPending: walletPending } = useSignAndExecuteTransaction();
+  const [zkPending, setZkPending] = useState(false);
   const [content, setContent] = useState<string>("");
   const [contentLoading, setContentLoading] = useState(false);
+  const isPending = walletPending || zkPending;
 
   const { data, isLoading } = useSuiClientQuery("getObject", {
     id,
@@ -66,6 +72,10 @@ export default function PostPage() {
   const author = fields.author;
   const tipBalance = Number(fields.tip_balance) / 1e9;
 
+  const isAuthor =
+    (account && account.address === author) ||
+    (session && !account && session.address === author);
+
   const handleTip = () => {
     if (!account) return;
     const tx = new Transaction();
@@ -77,16 +87,30 @@ export default function PostPage() {
     signAndExecute({ transaction: tx });
   };
 
-  const handleDelete = () => {
-    if (!account) return;
+  const handleDelete = async () => {
     const tx = new Transaction();
     tx.moveCall({
       target: `${PACKAGE_ID}::platform::delete_post`,
       arguments: [tx.object(id)],
     });
-    signAndExecute({ transaction: tx }, {
-      onSuccess: () => router.push("/"),
-    });
+
+    if (session && !account) {
+      try {
+        setZkPending(true);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await zkLoginSponsoredSignAndExecute(session, tx, suiClient as any);
+        router.push("/");
+      } finally {
+        setZkPending(false);
+      }
+      return;
+    }
+
+    if (account) {
+      signAndExecute({ transaction: tx }, {
+        onSuccess: () => router.push("/"),
+      });
+    }
   };
 
   return (
@@ -118,7 +142,7 @@ export default function PostPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {account && account.address !== author && (
+          {!isAuthor && account && account.address !== author && (
             <button
               onClick={handleTip}
               disabled={isPending}
@@ -127,7 +151,7 @@ export default function PostPage() {
               {isPending ? "送信中..." : "0.1 SUI チップを送る"}
             </button>
           )}
-          {account && account.address === author && (
+          {isAuthor && (
             <button
               onClick={handleDelete}
               disabled={isPending}

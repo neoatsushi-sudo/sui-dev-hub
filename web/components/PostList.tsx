@@ -1,9 +1,12 @@
 "use client";
 
-import { useSuiClientQuery, useSignAndExecuteTransaction, useCurrentAccount } from "@mysten/dapp-kit";
+import { useSuiClientQuery, useSignAndExecuteTransaction, useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
 import { PACKAGE_ID, OLD_PACKAGE_ID } from "@/lib/sui";
 import { useRouter } from "next/navigation";
+import { useZkLogin } from "@/context/ZkLoginContext";
+import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
+import { useState } from "react";
 
 type Post = {
   objectId: string;
@@ -27,9 +30,17 @@ function shortAddress(addr: string): string {
 
 function PostCard({ post }: { post: Post }) {
   const account = useCurrentAccount();
-  const { mutate: signAndExecute, isPending } = useSignAndExecuteTransaction();
+  const { session } = useZkLogin();
+  const suiClient = useSuiClient();
+  const { mutate: signAndExecute, isPending: walletPending } = useSignAndExecuteTransaction();
+  const [zkPending, setZkPending] = useState(false);
   const router = useRouter();
   const fields = post.content.fields;
+  const isPending = walletPending || zkPending;
+
+  const isAuthor =
+    (account && account.address === fields.author) ||
+    (session && !account && session.address === fields.author);
 
   const handleTip = () => {
     if (!account) return;
@@ -42,15 +53,28 @@ function PostCard({ post }: { post: Post }) {
     signAndExecute({ transaction: tx });
   };
 
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!account) return;
     const tx = new Transaction();
     tx.moveCall({
       target: `${PACKAGE_ID}::platform::delete_post`,
       arguments: [tx.object(post.objectId)],
     });
-    signAndExecute({ transaction: tx });
+
+    if (session && !account) {
+      try {
+        setZkPending(true);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await zkLoginSponsoredSignAndExecute(session, tx, suiClient as any);
+      } finally {
+        setZkPending(false);
+      }
+      return;
+    }
+
+    if (account) {
+      signAndExecute({ transaction: tx });
+    }
   };
 
   return (
@@ -66,7 +90,7 @@ function PostCard({ post }: { post: Post }) {
       </p>
       <p className="text-gray-500 text-xs mb-4">記事を読む →</p>
       <div className="flex items-center gap-2">
-        {account && account.address !== fields.author && (
+        {!isAuthor && account && account.address !== fields.author && (
           <button
             onClick={(e) => { e.stopPropagation(); handleTip(); }}
             disabled={isPending}
@@ -75,7 +99,7 @@ function PostCard({ post }: { post: Post }) {
             {isPending ? "送信中..." : "0.1 SUI チップ"}
           </button>
         )}
-        {account && account.address === fields.author && (
+        {isAuthor && (
           <button
             onClick={handleDelete}
             disabled={isPending}
