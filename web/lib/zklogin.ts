@@ -122,10 +122,11 @@ export function clearZkLoginSession() {
 export async function zkLoginSponsoredSignAndExecute(
   session: ZkLoginSession,
   tx: Transaction,
-  _suiClient?: unknown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  suiClient?: any
 ) {
   // トランザクション種別バイトのみビルド（ガス不要）
-  const txKindBytes = await tx.build({ onlyTransactionKind: true });
+  const txKindBytes = await tx.build({ onlyTransactionKind: true, client: suiClient });
   const txKindB64 = Buffer.from(txKindBytes).toString("base64");
 
   // Enoki にガス代スポンサーを依頼
