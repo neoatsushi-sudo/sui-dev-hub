@@ -36,7 +36,6 @@ export default function PostPage() {
     const fields = (data.data.content as any).fields;
     const blobId = decodeBytes(fields.content_hash);
 
-    // Walrus blob IDかどうか判定（44文字以上の英数字）
     if (blobId.length >= 20 && /^[A-Za-z0-9_-]+$/.test(blobId)) {
       setContentLoading(true);
       fetch(`${WALRUS_AGGREGATOR}/v1/blobs/${blobId}`)
@@ -46,11 +45,10 @@ export default function PostPage() {
           setContentLoading(false);
         })
         .catch(() => {
-          setContent(blobId); // フェッチ失敗時はblob IDをそのまま表示
+          setContent(blobId);
           setContentLoading(false);
         });
     } else {
-      // 旧形式（直接テキスト）
       setContent(blobId);
     }
   }, [data]);
@@ -77,6 +75,18 @@ export default function PostPage() {
       arguments: [tx.object(id), coin],
     });
     signAndExecute({ transaction: tx });
+  };
+
+  const handleDelete = () => {
+    if (!account) return;
+    const tx = new Transaction();
+    tx.moveCall({
+      target: `${PACKAGE_ID}::platform::delete_post`,
+      arguments: [tx.object(id)],
+    });
+    signAndExecute({ transaction: tx }, {
+      onSuccess: () => router.push("/"),
+    });
   };
 
   return (
@@ -107,15 +117,26 @@ export default function PostPage() {
           )}
         </div>
 
-        {account && account.address !== author && (
-          <button
-            onClick={handleTip}
-            disabled={isPending}
-            className="bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 text-white font-medium px-5 py-2 rounded-lg transition-colors"
-          >
-            {isPending ? "送信中..." : "0.1 SUI チップを送る"}
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {account && account.address !== author && (
+            <button
+              onClick={handleTip}
+              disabled={isPending}
+              className="bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 text-white font-medium px-5 py-2 rounded-lg transition-colors"
+            >
+              {isPending ? "送信中..." : "0.1 SUI チップを送る"}
+            </button>
+          )}
+          {account && account.address === author && (
+            <button
+              onClick={handleDelete}
+              disabled={isPending}
+              className="bg-red-800 hover:bg-red-700 disabled:opacity-50 text-white font-medium px-5 py-2 rounded-lg transition-colors"
+            >
+              {isPending ? "削除中..." : "記事を削除"}
+            </button>
+          )}
+        </div>
       </article>
     </div>
   );

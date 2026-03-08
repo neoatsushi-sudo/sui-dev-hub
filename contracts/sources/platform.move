@@ -41,6 +41,11 @@ module sui_content_platform::platform {
         amount: u64,
     }
 
+    public struct PostDeleted has copy, drop {
+        post_id: ID,
+        author: address,
+    }
+
     // ===== Functions =====
 
     public fun create_profile(
@@ -107,6 +112,16 @@ module sui_content_platform::platform {
         assert!(profile.owner == ctx.sender(), ENotAuthor);
         // tips are sent directly to author in tip(), so nothing to withdraw here
         // this function is for future use with escrow pattern
+    }
+
+    public fun delete_post(post: Post, ctx: &mut TxContext) {
+        assert!(post.author == ctx.sender(), ENotAuthor);
+        let Post { id, author, title: _, content_hash: _, tip_balance: _, created_at: _ } = post;
+        event::emit(PostDeleted {
+            post_id: object::uid_to_inner(&id),
+            author,
+        });
+        object::delete(id);
     }
 
     // ===== View Functions =====
