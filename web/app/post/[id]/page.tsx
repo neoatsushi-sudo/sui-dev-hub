@@ -4,6 +4,8 @@ import { useSuiClientQuery, useSignAndExecuteTransaction, useCurrentAccount } fr
 import { Transaction } from "@mysten/sui/transactions";
 import { PACKAGE_ID } from "@/lib/sui";
 import { useParams, useRouter } from "next/navigation";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 function decodeBytes(bytes: number[]): string {
   return new TextDecoder().decode(new Uint8Array(bytes));
@@ -63,8 +65,13 @@ export default function PostPage() {
         <p className="text-gray-500 text-sm mb-6">
           by {shortAddress(author)} · チップ合計: {tipBalance} SUI
         </p>
-        <div className="text-gray-200 whitespace-pre-wrap leading-relaxed mb-8">
-          {content}
+        <div className="prose prose-invert prose-sm max-w-none mb-8
+          prose-headings:text-white prose-p:text-gray-200 prose-a:text-blue-400
+          prose-code:text-green-400 prose-code:bg-gray-800 prose-code:px-1 prose-code:rounded
+          prose-pre:bg-gray-800 prose-pre:border prose-pre:border-gray-700
+          prose-blockquote:border-gray-600 prose-blockquote:text-gray-400
+          prose-strong:text-white prose-li:text-gray-200">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
         </div>
 
         {account && account.address !== author && (
