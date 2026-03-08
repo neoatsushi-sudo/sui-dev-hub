@@ -117,7 +117,7 @@ function PostCard({ post }: { post: Post }) {
         }`}>
           {suiNsName ? `🔷 ${displayName}` : displayName}
         </span>
-        <span>· チップ合計: {Number(fields.tip_balance) / 1e9} SUI</span>
+        <span>· 💜 {(Number(fields.tip_balance) / 1e9).toLocaleString()} 円</span>
       </p>
       <p className="text-gray-500 text-xs mb-4">記事を読む →</p>
       <div className="flex items-center gap-2">
@@ -127,7 +127,7 @@ function PostCard({ post }: { post: Post }) {
             disabled={isPending}
             className="text-sm bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg transition-colors"
           >
-            {isPending ? "送信中..." : "0.1 SUI チップ"}
+            {isPending ? "送信中..." : "🎁 100円分サポート"}
           </button>
         )}
         {isAuthor && (

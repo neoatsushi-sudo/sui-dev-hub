@@ -36,6 +36,7 @@ export function CreatePost() {
   const [sponsoring, setSponsoring] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addTag = (tag: string) => {
@@ -65,6 +66,10 @@ export function CreatePost() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Show local preview immediately while uploading
+    const localPreview = URL.createObjectURL(file);
+    setImagePreviewUrl(localPreview);
+
     try {
       setUploading(true);
       setError("");
@@ -72,8 +77,11 @@ export function CreatePost() {
       const imageUrl = `${WALRUS_AGGREGATOR}/v1/blobs/${blobId}`;
       const imageMarkdown = `\n![${file.name}](${imageUrl})\n`;
       setContent((prev) => prev + imageMarkdown);
+      // Update preview to the actual Walrus URL
+      setImagePreviewUrl(imageUrl);
     } catch (err) {
       setError(`画像のアップロードに失敗しました: ${String(err)}`);
+      setImagePreviewUrl(null);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -209,8 +217,28 @@ export function CreatePost() {
           disabled={isPending}
           className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white text-sm px-4 py-2 rounded-lg transition-colors"
         >
-          📷 画像をアップロード
+          {uploading ? "アップロード中..." : "📷 画像をアップロード"}
         </button>
+        {imagePreviewUrl && (
+          <div className="relative group">
+            <img
+              src={imagePreviewUrl}
+              alt="プレビュー"
+              className="h-16 w-24 object-cover rounded-lg border border-gray-700"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setImagePreviewUrl(null);
+                // Remove the last image markdown from content
+                setContent(prev => prev.replace(/\n!\[.*?\]\(.*?\)\n$/, ''));
+              }}
+              className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              ×
+            </button>
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-3">
         <button
