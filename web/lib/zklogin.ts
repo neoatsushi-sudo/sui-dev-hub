@@ -9,7 +9,7 @@ import {
 } from "@mysten/sui/zklogin";
 import { Transaction } from "@mysten/sui/transactions";
 
-const PROVER_URL = "https://prover.mystenlabs.com/v1";
+const PROVER_URL = "/api/zklogin-prove";
 
 export interface ZkLoginSession {
   address: string;
