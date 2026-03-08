@@ -10,13 +10,13 @@ export async function POST(req: NextRequest) {
 
     const { digest, signature } = await req.json();
 
-    const res = await fetch(`${ENOKI_API}/transaction-blocks/execute`, {
+    const res = await fetch(`${ENOKI_API}/transaction-blocks/sponsor/${digest}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${process.env.ENOKI_PRIVATE_KEY}`,
       },
-      body: JSON.stringify({ digest, signature }),
+      body: JSON.stringify({ signature }),
     });
 
     if (!res.ok) {
