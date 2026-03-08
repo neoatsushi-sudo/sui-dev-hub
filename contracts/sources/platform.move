@@ -66,6 +66,17 @@ module sui_content_platform::platform {
         price_mist: u64,  // price in MIST (1 SUI = 1_000_000_000 MIST)
     }
 
+    // NEW v6: Revenue Sharing config
+    // Stores the co-authors and their share in basis points (100 = 1%, 10000 = 100%)
+    // e.g., co_authors = [alice, bob], shares = [7000, 3000] means 70% to alice, 30% to bob
+    public struct CoAuthorConfig has key, store {
+        id: UID,
+        post_id: ID,
+        primary_author: address,   // must be the Post.author
+        co_authors: vector<address>,
+        shares_bps: vector<u64>,   // basis points, must sum to 10000
+    }
+
     // ===== Events =====
 
     public struct ProfileCreated has copy, drop {
@@ -123,7 +134,23 @@ module sui_content_platform::platform {
         amount_paid: u64,
     }
 
+    // v6 Events
+    public struct CoAuthorConfigSet has copy, drop {
+        config_id: ID,
+        post_id: ID,
+        primary_author: address,
+        co_authors: vector<address>,
+        shares_bps: vector<u64>,
+    }
+
+    public struct RevenueSplit has copy, drop {
+        post_id: ID,
+        from: address,
+        total_amount: u64,
+    }
+
     // ===== Functions =====
+
 
     public fun create_profile(
         username: vector<u8>,
@@ -316,5 +343,83 @@ module sui_content_platform::platform {
 
     public fun premium_price(cfg: &PremiumConfig): u64 {
         cfg.price_mist
+    }
+
+    // v6: Author sets up revenue sharing among co-authors
+    // shares_bps must sum to 10000 (basis points), one entry per co_author
+    public fun set_coauthor_config(
+        post: &Post,
+        co_authors: vector<address>,
+        shares_bps: vector<u64>,
+        ctx: &mut TxContext,
+    ) {
+        assert!(post.author == ctx.sender(), ENotAuthor);
+        assert!(vector::length(&co_authors) == vector::length(&shares_bps), ENotAuthor);
+
+        // Validate shares sum to 10000 bps (= 100%)
+        let mut total: u64 = 0;
+        let mut i = 0;
+        while (i < vector::length(&shares_bps)) {
+            total = total + *vector::borrow(&shares_bps, i);
+            i = i + 1;
+        };
+        assert!(total == 10000, ENotAuthor);
+
+        let cfg_id = object::new(ctx);
+        let id_copy = object::uid_to_inner(&cfg_id);
+        let shares_copy = copy shares_bps;
+        let authors_copy = copy co_authors;
+        let cfg = CoAuthorConfig {
+            id: cfg_id,
+            post_id: object::id(post),
+            primary_author: ctx.sender(),
+            co_authors,
+            shares_bps,
+        };
+        event::emit(CoAuthorConfigSet {
+            config_id: id_copy,
+            post_id: object::id(post),
+            primary_author: ctx.sender(),
+            co_authors: authors_copy,
+            shares_bps: shares_copy,
+        });
+        transfer::share_object(cfg);
+    }
+
+    // v6: Tip with automatic revenue sharing
+    // Payment is automatically split between co-authors per their shares_bps
+    public fun tip_with_sharing(
+        post: &mut Post,
+        cfg: &CoAuthorConfig,
+        payment: Coin<SUI>,
+        ctx: &mut TxContext,
+    ) {
+        assert!(cfg.post_id == object::id(post), ENotAuthor);
+        let total_amount = coin::value(&payment);
+        assert!(total_amount > 0, EInsufficientTip);
+
+        post.tip_balance = post.tip_balance + total_amount;
+
+        event::emit(RevenueSplit {
+            post_id: object::id(post),
+            from: ctx.sender(),
+            total_amount,
+        });
+
+        // Split and distribute to all co-authors
+        let n = vector::length(&cfg.co_authors);
+        let mut remaining = payment;
+        let mut i = 0;
+        while (i < n - 1) {
+            let share_bps = *vector::borrow(&cfg.shares_bps, i);
+            let amount = (total_amount * share_bps) / 10000;
+            let split_coin = coin::split(&mut remaining, amount, ctx);
+            let recipient = *vector::borrow(&cfg.co_authors, i);
+            transfer::public_transfer(split_coin, recipient);
+            i = i + 1;
+        };
+        // Send remainder to last co-author (collects any rounding dust)
+        let last_recipient = *vector::borrow(&cfg.co_authors, n - 1);
+        transfer::public_transfer(remaining, last_recipient);
     }
 }

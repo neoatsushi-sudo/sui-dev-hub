@@ -12,6 +12,7 @@ import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
 import { useAuthorName } from "@/lib/profile";
 import { CommentsSection } from "@/components/CommentsSection";
 import { LockAsPremiumButton } from "@/components/PremiumContent";
+import { RevenueShareSetup } from "@/components/RevenueSharing";
 
 const WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
 
@@ -235,8 +236,9 @@ export default function PostPage() {
 
         {/* Premium lock - only shown to author */}
         {isAuthor && (
-          <div className="mt-4">
+          <div className="mt-4 space-y-3">
             <LockAsPremiumButton postId={id} />
+            <RevenueShareSetup postId={id} />
           </div>
         )}
       </article>
