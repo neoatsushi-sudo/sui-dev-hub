@@ -69,7 +69,7 @@ export function TJPYCFaucet() {
   return (
     <div className="flex items-center gap-3 bg-blue-950/40 border border-blue-800/50 rounded-lg px-3 py-1.5 backdrop-blur-sm">
       <div className="flex flex-col">
-        <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Test JPYC / テスト円</span>
+        <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">TSUI-JPY (テスト円)</span>
         <span className="text-sm font-bold text-white leading-none">
           {balance !== null ? `${balance} 円` : "..."}
         </span>
@@ -80,7 +80,7 @@ export function TJPYCFaucet() {
         disabled={isPending}
         className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-md transition-all shadow-[0_0_10px_rgba(37,99,235,0.3)] hover:shadow-[0_0_15px_rgba(37,99,235,0.6)]"
       >
-        {isPending ? "取得中..." : "蛇口 (1万円分取得)"}
+        {isPending ? "取得中..." : "💧 1万円分取得 (TSUI-JPY)"}
       </button>
     </div>
   );
