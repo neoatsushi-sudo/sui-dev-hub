@@ -66,6 +66,8 @@ function PostCard({ post }: { post: Post }) {
         setZkPending(true);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await zkLoginSponsoredSignAndExecute(session, tx, suiClient as any);
+      } catch (err) {
+        alert(`削除失敗: ${String(err)}`);
       } finally {
         setZkPending(false);
       }
@@ -73,7 +75,9 @@ function PostCard({ post }: { post: Post }) {
     }
 
     if (account) {
-      signAndExecute({ transaction: tx });
+      signAndExecute({ transaction: tx }, {
+        onError: (err) => alert(`削除失敗: ${String(err)}`),
+      });
     }
   };
 
