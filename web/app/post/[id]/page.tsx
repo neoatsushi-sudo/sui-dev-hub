@@ -88,6 +88,7 @@ export default function PostPage() {
   };
 
   const handleDelete = async () => {
+    if (!confirm("この記事を削除しますか？")) return;
     const tx = new Transaction();
     tx.moveCall({
       target: `${PACKAGE_ID}::platform::delete_post`,

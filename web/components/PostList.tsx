@@ -55,6 +55,7 @@ function PostCard({ post }: { post: Post }) {
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!confirm("この記事を削除しますか？")) return;
     const tx = new Transaction();
     tx.moveCall({
       target: `${PACKAGE_ID}::platform::delete_post`,
