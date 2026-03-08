@@ -64,6 +64,12 @@ export default function PostPage() {
     ?.parsedJson as any;
   const configId = coAuthorConfig?.config_id;
 
+  // Must call all hooks before any early returns (Rules of Hooks)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const authorAddress = data?.data ? (data.data.content as any)?.fields?.author ?? "" : "";
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { displayName, suiNsName } = useAuthorName(authorAddress);
+
   useEffect(() => {
     if (!data?.data) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -101,8 +107,6 @@ export default function PostPage() {
   const { cleanTitle, tags } = parseTitle(rawTitle);
   const author = fields.author;
   const tipBalance = Number(fields.tip_balance) / 1e9;
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { displayName, suiNsName } = useAuthorName(author);
 
   const isAuthor =
     (account && account.address === author) ||
