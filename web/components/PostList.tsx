@@ -6,7 +6,7 @@ import { PACKAGE_ID, OLD_PACKAGE_ID } from "@/lib/sui";
 import { useRouter } from "next/navigation";
 import { useZkLogin } from "@/context/ZkLoginContext";
 import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuthorName } from "@/lib/profile";
 
 type Post = {
@@ -39,6 +39,8 @@ function parseTitle(rawTitle: string): { cleanTitle: string; tags: string[] } {
   const cleanTitle = rawTitle.replace(/\s*\[[^\]]+\]/g, "").trim();
   return { cleanTitle, tags };
 }
+
+type SortOption = "newest" | "popular";
 
 function PostCard({ post }: { post: Post }) {
   const account = useCurrentAccount();
@@ -150,6 +152,7 @@ function PostCard({ post }: { post: Post }) {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function useAllPostIds() {
   const { data: newTxs, isPending: isNewPending } = useSuiClientQuery(
     "queryTransactionBlocks",
@@ -161,7 +164,7 @@ function useAllPostIds() {
     },
     { refetchInterval: 5000 }
   );
-  
+
   const { data: oldTxs, isPending: isOldPending } = useSuiClientQuery(
     "queryTransactionBlocks",
     {
@@ -171,7 +174,7 @@ function useAllPostIds() {
       order: "descending",
     }
   );
-  
+
   const { data: deleteTxs } = useSuiClientQuery(
     "queryTransactionBlocks",
     {
@@ -183,11 +186,13 @@ function useAllPostIds() {
     { refetchInterval: 10000 }
   );
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getPostIdsFromTxs = (txsData: any[] | undefined, eventSuffix: string) => {
     const ids: string[] = [];
     if (!txsData) return ids;
     txsData.forEach((tx) => {
       if (tx.events) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         tx.events.forEach((ev: any) => {
           if (ev.type.includes(eventSuffix) && ev.parsedJson?.post_id) {
             ids.push(ev.parsedJson.post_id as string);
@@ -201,7 +206,7 @@ function useAllPostIds() {
   const newIds = getPostIdsFromTxs(newTxs?.data, "::platform::PostCreated");
   const oldIds = getPostIdsFromTxs(oldTxs?.data, "::platform::PostCreated");
   const deletedIdsList = getPostIdsFromTxs(deleteTxs?.data, "::platform::PostDeleted");
-  
+
   const deletedIds = new Set(deletedIdsList);
 
   return {
@@ -212,6 +217,9 @@ function useAllPostIds() {
 
 export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
   const { postIds, isEventsLoading } = useAllPostIds();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>("newest");
 
   const { data: objects, isLoading: isObjectsLoading } = useSuiClientQuery(
     "multiGetObjects",
@@ -220,6 +228,54 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
   );
 
   const isLoading = isEventsLoading || (postIds.length > 0 && isObjectsLoading);
+
+  // Process posts: filter by author, parse titles, extract tags
+  const { filteredPosts, allTags } = useMemo(() => {
+    const validPosts = (objects ?? []).filter((obj) => {
+      if (!obj.data?.content) return false;
+      if (authorAddress) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const author = (obj.data.content as any).fields?.author;
+        return author === authorAddress;
+      }
+      return true;
+    }) as unknown as { data: Post }[];
+
+    // Collect all unique tags
+    const tagSet = new Set<string>();
+    const postsWithParsed = validPosts.map((obj) => {
+      const post = obj.data as unknown as Post;
+      const rawTitle = decodeBytes(post.content.fields.title);
+      const { cleanTitle, tags } = parseTitle(rawTitle);
+      tags.forEach((t) => tagSet.add(t));
+      return { post, cleanTitle, tags };
+    });
+
+    // Filter by search query
+    let filtered = postsWithParsed;
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      filtered = filtered.filter((p) => p.cleanTitle.toLowerCase().includes(q));
+    }
+
+    // Filter by selected tag
+    if (selectedTag) {
+      filtered = filtered.filter((p) => p.tags.includes(selectedTag));
+    }
+
+    // Sort
+    if (sortBy === "popular") {
+      filtered.sort((a, b) =>
+        Number(b.post.content.fields.tip_balance) - Number(a.post.content.fields.tip_balance)
+      );
+    }
+    // "newest" keeps the original order (already descending by creation)
+
+    return {
+      filteredPosts: filtered.map((p) => p.post),
+      allTags: [...tagSet].sort(),
+    };
+  }, [objects, authorAddress, searchQuery, selectedTag, sortBy]);
 
   if (isLoading) {
     return (
@@ -242,24 +298,88 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
     );
   }
 
-  const validPosts = (objects ?? []).filter((obj) => {
-    if (!obj.data?.content) return false;
-    if (authorAddress) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const author = (obj.data.content as any).fields?.author;
-      return author === authorAddress;
-    }
-    return true;
-  });
-
-  if (!validPosts.length) return <p className="text-gray-500 text-sm">まだ記事がありません。</p>;
-
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-gray-200">最新記事</h2>
-      {validPosts.map((obj) => (
-        obj.data ? <PostCard key={obj.data.objectId} post={obj.data as unknown as Post} /> : null
-      ))}
+      {/* Search, Sort & Tag Filter UI */}
+      {!authorAddress && (
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="記事を検索..."
+              className="flex-1 bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <div className="flex bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setSortBy("newest")}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${
+                  sortBy === "newest"
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                新着
+              </button>
+              <button
+                onClick={() => setSortBy("popular")}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${
+                  sortBy === "popular"
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                人気
+              </button>
+            </div>
+          </div>
+
+          {allTags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setSelectedTag(null)}
+                className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
+                  selectedTag === null
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-800 text-gray-400 hover:text-white"
+                }`}
+              >
+                ALL
+              </button>
+              {allTags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                  className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
+                    selectedTag === tag
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-800 text-gray-400 hover:text-white"
+                  }`}
+                >
+                  #{tag}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <h2 className="text-lg font-semibold text-gray-200">
+        {sortBy === "popular" ? "人気記事" : "最新記事"}
+        {selectedTag && <span className="text-blue-400 text-sm ml-2">#{selectedTag}</span>}
+        {searchQuery.trim() && <span className="text-gray-500 text-sm ml-2">「{searchQuery.trim()}」の検索結果</span>}
+      </h2>
+
+      {filteredPosts.length === 0 ? (
+        <p className="text-gray-500 text-sm">
+          {searchQuery.trim() || selectedTag ? "該当する記事が見つかりません。" : "まだ記事がありません。"}
+        </p>
+      ) : (
+        filteredPosts.map((post) => (
+          <PostCard key={post.objectId} post={post} />
+        ))
+      )}
     </div>
   );
 }
