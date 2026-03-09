@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from "react";
 import { useSuiClient } from "@mysten/dapp-kit";
-import { PACKAGE_ID } from "./sui";
+import { ORIGINAL_PACKAGE_ID } from "./sui";
 
 export type ProfileData = {
   id: string;
@@ -36,7 +36,7 @@ export async function fetchUserProfile(
   try {
     const { data } = await client.getOwnedObjects({
       owner: address,
-      filter: { StructType: `${PACKAGE_ID}::platform::Profile` },
+      filter: { StructType: `${ORIGINAL_PACKAGE_ID}::platform::Profile` },
       options: { showContent: true },
     });
 
