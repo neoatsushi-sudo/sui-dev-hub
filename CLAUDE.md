@@ -27,7 +27,10 @@ sui-content-platform/
 
 ## デプロイ情報
 
-- **Package ID (Testnet)**: `0x2a0120c049a8642953d7adc0d841bc91917e3e42b6029b73d250f3a0194a8b06`
+- **Package ID v8 (最新)**: `0x036ef74b31a2e882cb391c388170fe11a5aba7ded23d6d2f9a7c0bc64399deca`
+- **Package ID v1 (original)**: `0x2a0120c049a8642953d7adc0d841bc91917e3e42b6029b73d250f3a0194a8b06`
+- **RewardPool ID**: `0x6d491f156024ce769f9b1ff878daa6ab84e4795b67132eeb75f701953d02fc42`
+- **UpgradeCap ID**: `0xd3e3941278e748fa856e6e23178976ce10ef0722c7f11b12ca120d7b0c1d6797`
 - **ライブデモ**: https://sui-dev-hub-tau.vercel.app
 
 ## 自律動作ルール

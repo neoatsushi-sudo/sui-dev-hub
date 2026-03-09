@@ -13,6 +13,7 @@ import { useAuthorName } from "@/lib/profile";
 import { CommentsSection } from "@/components/CommentsSection";
 import { LockAsPremiumButton } from "@/components/PremiumContent";
 import { RevenueShareSetup } from "@/components/RevenueSharing";
+import ReadToEarnButton from "@/components/ReadToEarnButton";
 
 const WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
 
@@ -264,6 +265,11 @@ export default function PostPage() {
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
           )}
         </div>
+
+        {/* Read-to-Earn: 著者本人以外に表示 */}
+        {!isAuthor && (account || session) && (
+          <ReadToEarnButton postId={id} />
+        )}
 
         {/* Author Card */}
         <div className="mt-12 pt-8 border-t border-gray-800">

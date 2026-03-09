@@ -2,16 +2,25 @@ module sui_content_platform::platform {
     use sui::coin::{Self, Coin};
     use sui::sui::SUI;
     use sui::event;
+    use sui::balance::{Self, Balance};
+    use sui::dynamic_field;
 
     // ===== Errors =====
     const ENotAuthor: u64 = 1;
     const EInsufficientTip: u64 = 2;
     const EInsufficientPayment: u64 = 3;
     const EPremiumAlreadyFree: u64 = 4;
+    const EAlreadyClaimed: u64 = 5;
+    const EInsufficientPool: u64 = 6;
+    const EInsufficientStake: u64 = 7;
 
     // ===== Constants =====
     // Default premium price: 0.5 SUI
     const DEFAULT_PREMIUM_PRICE_MIST: u64 = 500_000_000;
+    // v8: 読了報酬 0.05 SUI
+    const READING_REWARD_MIST: u64 = 50_000_000;
+    // v8: 投稿スタック最低額 1 SUI
+    const STAKE_AMOUNT_MIST: u64 = 1_000_000_000;
 
     // ===== Objects =====
 
@@ -554,5 +563,208 @@ module sui_content_platform::platform {
         };
         let last_recipient = *vector::borrow(&cfg.co_authors, n - 1);
         transfer::public_transfer(remaining, last_recipient);
+    }
+
+    // ==========================================
+    // v8: RewardPool (Read-to-Earn) + Stake-to-Publish
+    // ==========================================
+
+    // ===== v8 Objects =====
+
+    /// 報酬プール: プラットフォームが保有するSUI残高の共有オブジェクト
+    public struct RewardPool has key {
+        id: UID,
+        balance: Balance<SUI>,
+        total_claimed: u64,
+        total_funded: u64,
+    }
+
+    /// dynamic_fieldキー: (post_id, claimer)の組み合わせで重複請求を防止
+    public struct ClaimKey has copy, drop, store {
+        post_id: ID,
+        claimer: address,
+    }
+
+    /// Read-to-Earn: 読者が報酬を受け取った証明（重複受領の防止）
+    public struct ReadReceipt has key, store {
+        id: UID,
+        post_id: ID,
+        claimer: address,
+    }
+
+    /// 投稿デポジット: スパム対策のため著者がロックするSUI（著者が所有）
+    public struct PostStake has key, store {
+        id: UID,
+        post_id: ID,
+        author: address,
+        amount: u64,
+        balance: Balance<SUI>,
+    }
+
+    // ===== v8 Events =====
+
+    public struct RewardPoolCreated has copy, drop {
+        pool_id: ID,
+    }
+
+    public struct RewardPoolFunded has copy, drop {
+        pool_id: ID,
+        funder: address,
+        amount: u64,
+        new_total: u64,
+    }
+
+    public struct ReadRewardClaimed has copy, drop {
+        pool_id: ID,
+        post_id: ID,
+        claimer: address,
+        amount: u64,
+    }
+
+    public struct PostStaked has copy, drop {
+        post_id: ID,
+        author: address,
+        stake_amount: u64,
+    }
+
+    public struct StakeReclaimed has copy, drop {
+        post_id: ID,
+        author: address,
+        amount: u64,
+    }
+
+    // ===== v8 Functions =====
+
+    /// RewardPoolを作成してshared objectとして公開（デプロイ後に1回呼ぶ）
+    public fun create_reward_pool(ctx: &mut TxContext) {
+        let pool_uid = object::new(ctx);
+        let pool_id = object::uid_to_inner(&pool_uid);
+        let pool = RewardPool {
+            id: pool_uid,
+            balance: balance::zero(),
+            total_claimed: 0,
+            total_funded: 0,
+        };
+        event::emit(RewardPoolCreated { pool_id });
+        transfer::share_object(pool);
+    }
+
+    /// RewardPoolにSUIを入金（誰でも可能）
+    public fun fund_reward_pool(
+        pool: &mut RewardPool,
+        payment: Coin<SUI>,
+        ctx: &mut TxContext,
+    ) {
+        let amount = coin::value(&payment);
+        pool.total_funded = pool.total_funded + amount;
+        balance::join(&mut pool.balance, coin::into_balance(payment));
+        event::emit(RewardPoolFunded {
+            pool_id: object::id(pool),
+            funder: ctx.sender(),
+            amount,
+            new_total: balance::value(&pool.balance),
+        });
+    }
+
+    /// Read-to-Earn: 記事を読んだ報酬をプールから受け取る
+    /// 同一ユーザー × 同一記事は1回限り（クライアント側でReceiptの有無を確認）
+    public fun claim_reading_reward(
+        pool: &mut RewardPool,
+        post: &Post,
+        ctx: &mut TxContext,
+    ): ReadReceipt {
+        assert!(
+            balance::value(&pool.balance) >= READING_REWARD_MIST,
+            EInsufficientPool
+        );
+
+        pool.total_claimed = pool.total_claimed + READING_REWARD_MIST;
+
+        // 報酬を読者へ送金
+        let reward_coin = coin::from_balance(
+            balance::split(&mut pool.balance, READING_REWARD_MIST),
+            ctx,
+        );
+        transfer::public_transfer(reward_coin, ctx.sender());
+
+        event::emit(ReadRewardClaimed {
+            pool_id: object::id(pool),
+            post_id: object::id(post),
+            claimer: ctx.sender(),
+            amount: READING_REWARD_MIST,
+        });
+
+        ReadReceipt {
+            id: object::new(ctx),
+            post_id: object::id(post),
+            claimer: ctx.sender(),
+        }
+    }
+
+    /// Stake-to-Publish: プールへの入金付きで投稿（スパム対策）
+    /// デポジットはそのままRewardPoolの原資になる
+    public fun create_post_with_pool(
+        pool: &mut RewardPool,
+        title: vector<u8>,
+        content_hash: vector<u8>,
+        deposit: Coin<SUI>,
+        ctx: &mut TxContext,
+    ) {
+        let amount = coin::value(&deposit);
+        assert!(amount >= STAKE_AMOUNT_MIST, EInsufficientStake);
+
+        // Post作成（既存ロジックと同等）
+        let post_uid = object::new(ctx);
+        let post_id = object::uid_to_inner(&post_uid);
+        let title_copy = title;
+        let post = Post {
+            id: post_uid,
+            author: ctx.sender(),
+            title: title_copy,
+            content_hash,
+            tip_balance: 0,
+            created_at: ctx.epoch(),
+        };
+        event::emit(PostCreated {
+            post_id,
+            author: ctx.sender(),
+            title: post.title,
+        });
+        transfer::share_object(post);
+
+        // デポジットをプールに寄付する
+        pool.total_funded = pool.total_funded + amount;
+        balance::join(&mut pool.balance, coin::into_balance(deposit));
+        event::emit(RewardPoolFunded {
+            pool_id: object::id(pool),
+            funder: ctx.sender(),
+            amount,
+            new_total: balance::value(&pool.balance),
+        });
+    }
+
+    /// スタックを著者へ返還（いつでも回収可能）
+    public fun reclaim_stake(stake: PostStake, ctx: &mut TxContext) {
+        assert!(stake.author == ctx.sender(), ENotAuthor);
+        let PostStake { id, post_id, author: _, amount, balance } = stake;
+        let coin = coin::from_balance(balance, ctx);
+        event::emit(StakeReclaimed {
+            post_id,
+            author: ctx.sender(),
+            amount,
+        });
+        object::delete(id);
+        transfer::public_transfer(coin, ctx.sender());
+    }
+
+    // ===== v8 View Functions =====
+
+    public fun reward_pool_balance(pool: &RewardPool): u64 {
+        balance::value(&pool.balance)
+    }
+
+    public fun has_claimed_reward(pool: &RewardPool, post_id: ID, claimer: address): bool {
+        let key = ClaimKey { post_id, claimer };
+        dynamic_field::exists_(&pool.id, key)
     }
 }

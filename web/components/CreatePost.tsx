@@ -3,11 +3,14 @@
 import { useState, useRef } from "react";
 import { useSignAndExecuteTransaction, useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
-import { PACKAGE_ID } from "@/lib/sui";
+import { PACKAGE_ID, REWARD_POOL_ID } from "@/lib/sui";
 import { useZkLogin } from "@/context/ZkLoginContext";
 import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
 
 const WALRUS_PUBLISHER = "https://publisher.walrus-testnet.walrus.space";
+
+// Stake-to-Publish: 1 SUI デポジット
+const STAKE_AMOUNT_MIST = 1_000_000_000;
 
 async function uploadToWalrus(content: string | File): Promise<string> {
   const res = await fetch(`${WALRUS_PUBLISHER}/v1/blobs?epochs=5`, {
@@ -37,6 +40,7 @@ export function CreatePost() {
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [useStake, setUseStake] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addTag = (tag: string) => {
@@ -96,7 +100,7 @@ export function CreatePost() {
     setTimeout(() => setDone(false), 3000);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!title || !content) return;
     if (!account && !session) return;
@@ -115,15 +119,30 @@ export function CreatePost() {
     }
 
     const tx = new Transaction();
-    tx.moveCall({
-      target: `${PACKAGE_ID}::platform::create_post`,
-      arguments: [
-        tx.pure.string(buildFinalTitle()),
-        tx.pure.string(blobId),
-      ],
-    });
 
-    // zkLogin user: use sponsored transaction (gasless)
+    if (useStake && account) {
+      // Stake-to-Publish: ガスコインから 1 SUI を分割してデポジット
+      const [depositCoin] = tx.splitCoins(tx.gas, [tx.pure.u64(STAKE_AMOUNT_MIST)]);
+      tx.moveCall({
+        target: `${PACKAGE_ID}::platform::create_post_with_pool`,
+        arguments: [
+          tx.object(REWARD_POOL_ID),
+          tx.pure.string(buildFinalTitle()),
+          tx.pure.string(blobId),
+          depositCoin,
+        ],
+      });
+    } else {
+      tx.moveCall({
+        target: `${PACKAGE_ID}::platform::create_post`,
+        arguments: [
+          tx.pure.string(buildFinalTitle()),
+          tx.pure.string(blobId),
+        ],
+      });
+    }
+
+    // zkLogin user: use sponsored transaction (gasless) — stake不可
     if (session && !account) {
       try {
         setSponsoring(true);
@@ -148,6 +167,7 @@ export function CreatePost() {
     if (uploading) return "Walrusにアップロード中...";
     if (sponsoring) return "ガス代スポンサー中...";
     if (walletPending) return "チェーンに保存中...";
+    if (useStake) return "🔒 1 SUI デポジットして投稿する";
     return "投稿する";
   };
 
@@ -240,11 +260,47 @@ export function CreatePost() {
           </div>
         )}
       </div>
+      {/* Stake-to-Publish トグル（ウォレット接続時のみ） */}
+      {account && (
+        <div
+          onClick={() => setUseStake((v) => !v)}
+          className={`flex items-center gap-3 mb-4 p-3 rounded-lg border cursor-pointer transition-all select-none ${
+            useStake
+              ? "border-orange-700/60 bg-orange-950/20"
+              : "border-gray-700 bg-gray-800/30 hover:border-gray-600"
+          }`}
+        >
+          <div
+            className={`w-10 h-5 rounded-full flex items-center transition-colors ${
+              useStake ? "bg-orange-600" : "bg-gray-600"
+            }`}
+          >
+            <div
+              className={`w-4 h-4 rounded-full bg-white mx-0.5 transition-transform ${
+                useStake ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-white">
+              🔒 Stake-to-Publish（スパム対策）
+            </p>
+            <p className="text-xs text-gray-400">
+              1 SUI をデポジットして投稿の信頼性を証明。いつでも回収可能。
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-3">
         <button
           type="submit"
           disabled={isPending || !title || !content}
-          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-5 py-2 rounded-lg transition-colors"
+          className={`disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-5 py-2 rounded-lg transition-colors ${
+            useStake
+              ? "bg-orange-600 hover:bg-orange-500"
+              : "bg-blue-600 hover:bg-blue-500"
+          }`}
         >
           {getButtonLabel()}
         </button>
