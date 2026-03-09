@@ -145,20 +145,30 @@ function PostCard({ post }: { post: Post }) {
 }
 
 function useAllPostIds() {
-  const { data: newData } = useSuiClientQuery("queryEvents", {
-    query: { MoveEventType: `${PACKAGE_ID}::platform::PostCreated` },
-    limit: 20,
-    order: "descending",
-  });
+  const { data: newData } = useSuiClientQuery(
+    "queryEvents",
+    {
+      query: { MoveEventType: `${PACKAGE_ID}::platform::PostCreated` },
+      limit: 50,
+      order: "descending",
+    },
+    { refetchInterval: 5000 } // Poll every 5 seconds to catch new posts
+  );
+  
   const { data: oldData } = useSuiClientQuery("queryEvents", {
     query: { MoveEventType: `${OLD_PACKAGE_ID}::platform::PostCreated` },
     limit: 20,
     order: "descending",
   });
-  const { data: deletedData } = useSuiClientQuery("queryEvents", {
-    query: { MoveEventType: `${PACKAGE_ID}::platform::PostDeleted` },
-    limit: 50,
-  });
+  
+  const { data: deletedData } = useSuiClientQuery(
+    "queryEvents",
+    {
+      query: { MoveEventType: `${PACKAGE_ID}::platform::PostDeleted` },
+      limit: 50,
+    },
+    { refetchInterval: 10000 }
+  );
 
   const deletedIds = new Set(
     (deletedData?.data ?? []).map((e) => (e.parsedJson as { post_id: string }).post_id)
