@@ -204,12 +204,19 @@ export default function PostDetail({ id }: { id: string }) {
       </button>
 
       <article className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-        <h1 className="text-2xl font-bold text-white mb-2">{cleanTitle}</h1>
+        <div className="flex items-center gap-2 mb-2">
+          <h1 className="text-2xl font-bold text-white">{cleanTitle}</h1>
+          {tags.includes("AI") && (
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-violet-900/60 text-violet-300 border border-violet-700/50 flex-shrink-0">
+              AI 記入
+            </span>
+          )}
+        </div>
 
-        {/* Tags */}
-        {tags.length > 0 && (
+        {/* Tags (AIタグはバッジで表示済みなので除外) */}
+        {tags.filter((t) => t !== "AI").length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3">
-            {tags.map((tag) => (
+            {tags.filter((t) => t !== "AI").map((tag) => (
               <span key={tag} className="bg-blue-950 text-blue-300 text-xs px-2 py-0.5 rounded-full">
                 #{tag}
               </span>

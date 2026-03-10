@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useSignAndExecuteTransaction, useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
-import { PACKAGE_ID, REWARD_POOL_ID } from "@/lib/sui";
+import { PACKAGE_ID } from "@/lib/sui";
 import { useZkLogin } from "@/context/ZkLoginContext";
 import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
+import { Turnstile } from "@marsidev/react-turnstile";
 
 const WALRUS_PUBLISHER = "https://publisher.walrus-testnet.walrus.space";
-
-// Stake-to-Publish: 1 SUI デポジット
-const STAKE_AMOUNT_MIST = 1_000_000_000;
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "1x00000000000000000000AA";
 
 async function uploadToWalrus(content: string | File): Promise<string> {
   const res = await fetch(`${WALRUS_PUBLISHER}/v1/blobs?epochs=5`, {
@@ -40,8 +39,14 @@ export function CreatePost() {
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
-  const [useStake, setUseStake] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const onCaptchaSuccess = useCallback((token: string) => {
+    setCaptchaToken(token);
+    setCaptchaVerified(true);
+  }, []);
 
   const addTag = (tag: string) => {
     const clean = tag.trim().replace(/^#/, "");
@@ -60,7 +65,6 @@ export function CreatePost() {
     }
   };
 
-  // Tags are stored in title as a suffix: "My Article Title [Move][Sui]"
   const buildFinalTitle = () => {
     const tagSuffix = tags.map((t) => `[${t}]`).join("");
     return tagSuffix ? `${title} ${tagSuffix}` : title;
@@ -70,7 +74,6 @@ export function CreatePost() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Show local preview immediately while uploading
     const localPreview = URL.createObjectURL(file);
     setImagePreviewUrl(localPreview);
 
@@ -81,7 +84,6 @@ export function CreatePost() {
       const imageUrl = `${WALRUS_AGGREGATOR}/v1/blobs/${blobId}`;
       const imageMarkdown = `\n![${file.name}](${imageUrl})\n`;
       setContent((prev) => prev + imageMarkdown);
-      // Update preview to the actual Walrus URL
       setImagePreviewUrl(imageUrl);
     } catch (err) {
       setError(`画像のアップロードに失敗しました: ${String(err)}`);
@@ -100,11 +102,36 @@ export function CreatePost() {
     setTimeout(() => setDone(false), 3000);
   };
 
+  const verifyCaptcha = async (): Promise<boolean> => {
+    if (!captchaToken) return false;
+    try {
+      const res = await fetch("/api/verify-captcha", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: captchaToken }),
+      });
+      const data = await res.json();
+      return data.success === true;
+    } catch {
+      return false;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!title || !content) return;
     if (!account && !session) return;
     setError("");
+
+    if (!captchaVerified) {
+      setError("CAPTCHA認証を完了してください");
+      return;
+    }
+    const isHuman = await verifyCaptcha();
+    if (!isHuman) {
+      setError("CAPTCHA認証に失敗しました。リロードしてやり直してください。");
+      return;
+    }
 
     let blobId: string;
     try {
@@ -119,30 +146,14 @@ export function CreatePost() {
     }
 
     const tx = new Transaction();
+    tx.moveCall({
+      target: `${PACKAGE_ID}::platform::create_post`,
+      arguments: [
+        tx.pure.string(buildFinalTitle()),
+        tx.pure.string(blobId),
+      ],
+    });
 
-    if (useStake && account) {
-      // Stake-to-Publish: ガスコインから 1 SUI を分割してデポジット
-      const [depositCoin] = tx.splitCoins(tx.gas, [tx.pure.u64(STAKE_AMOUNT_MIST)]);
-      tx.moveCall({
-        target: `${PACKAGE_ID}::platform::create_post_with_pool`,
-        arguments: [
-          tx.object(REWARD_POOL_ID),
-          tx.pure.string(buildFinalTitle()),
-          tx.pure.string(blobId),
-          depositCoin,
-        ],
-      });
-    } else {
-      tx.moveCall({
-        target: `${PACKAGE_ID}::platform::create_post`,
-        arguments: [
-          tx.pure.string(buildFinalTitle()),
-          tx.pure.string(blobId),
-        ],
-      });
-    }
-
-    // zkLogin user: use sponsored transaction (gasless) — stake不可
     if (session && !account) {
       try {
         setSponsoring(true);
@@ -157,7 +168,6 @@ export function CreatePost() {
       return;
     }
 
-    // Wallet user: use dapp-kit
     signAndExecute({ transaction: tx }, { onSuccess: handleSuccess });
   };
 
@@ -167,7 +177,6 @@ export function CreatePost() {
     if (uploading) return "Walrusにアップロード中...";
     if (sponsoring) return "ガス代スポンサー中...";
     if (walletPending) return "チェーンに保存中...";
-    if (useStake) return "🔒 1 SUI デポジットして投稿する";
     return "投稿する";
   };
 
@@ -250,7 +259,6 @@ export function CreatePost() {
               type="button"
               onClick={() => {
                 setImagePreviewUrl(null);
-                // Remove the last image markdown from content
                 setContent(prev => prev.replace(/\n!\[.*?\]\(.*?\)\n$/, ''));
               }}
               className="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -260,47 +268,26 @@ export function CreatePost() {
           </div>
         )}
       </div>
-      {/* Stake-to-Publish トグル（ウォレット接続時のみ） */}
-      {account && (
-        <div
-          onClick={() => setUseStake((v) => !v)}
-          className={`flex items-center gap-3 mb-4 p-3 rounded-lg border cursor-pointer transition-all select-none ${
-            useStake
-              ? "border-orange-700/60 bg-orange-950/20"
-              : "border-gray-700 bg-gray-800/30 hover:border-gray-600"
-          }`}
-        >
-          <div
-            className={`w-10 h-5 rounded-full flex items-center transition-colors ${
-              useStake ? "bg-orange-600" : "bg-gray-600"
-            }`}
-          >
-            <div
-              className={`w-4 h-4 rounded-full bg-white mx-0.5 transition-transform ${
-                useStake ? "translate-x-5" : "translate-x-0"
-              }`}
-            />
-          </div>
-          <div>
-            <p className="text-sm font-medium text-white">
-              🔒 Stake-to-Publish（スパム対策）
-            </p>
-            <p className="text-xs text-gray-400">
-              1 SUI をデポジットして投稿の信頼性を証明。いつでも回収可能。
-            </p>
-          </div>
-        </div>
-      )}
+
+      {/* Cloudflare Turnstile CAPTCHA */}
+      <div className="mb-4">
+        <Turnstile
+          siteKey={TURNSTILE_SITE_KEY}
+          onSuccess={onCaptchaSuccess}
+          onError={() => setCaptchaVerified(false)}
+          onExpire={() => { setCaptchaVerified(false); setCaptchaToken(null); }}
+          options={{ theme: "dark", size: "normal" }}
+        />
+        {captchaVerified && (
+          <p className="text-xs text-green-400 mt-1">✓ 人間であることが確認されました</p>
+        )}
+      </div>
 
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          disabled={isPending || !title || !content}
-          className={`disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-5 py-2 rounded-lg transition-colors ${
-            useStake
-              ? "bg-orange-600 hover:bg-orange-500"
-              : "bg-blue-600 hover:bg-blue-500"
-          }`}
+          disabled={isPending || !title || !content || !captchaVerified}
+          className="disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium px-5 py-2 rounded-lg transition-colors bg-blue-600 hover:bg-blue-500"
         >
           {getButtonLabel()}
         </button>
