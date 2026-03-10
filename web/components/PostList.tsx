@@ -142,7 +142,7 @@ function PostCard({ post }: { post: Post }) {
             disabled={isPending}
             className="text-sm bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg transition-colors"
           >
-            {isPending ? "送信中..." : "🎁 100円分サポート"}
+            {isPending ? "送信中..." : "🎁 0.1 SUI サポート"}
           </button>
         )}
         {isAuthor && (
