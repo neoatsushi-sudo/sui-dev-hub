@@ -1,0 +1,51 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:claude.ai)",
+      "WebFetch(domain:www.anthropic.com)",
+      "WebFetch(domain:youtu.be)",
+      "WebFetch(domain:gemini.google.com)",
+      "WebFetch(domain:github.com)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit(contracts/sources/*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /c/Users/user/projects/sui-dev-hub/contracts && /c/Users/user/AppData/Local/bin/sui.exe move build 2>&1 | tail -5"
+          }
+        ]
+      },
+      {
+        "matcher": "Write(contracts/sources/*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /c/Users/user/projects/sui-dev-hub/contracts && /c/Users/user/AppData/Local/bin/sui.exe move build 2>&1 | tail -5"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit(web/components/*|web/app/*|web/lib/*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /c/Users/user/projects/sui-dev-hub/web && npx tsc --noEmit 2>&1 | tail -10"
+          }
+        ]
+      },
+      {
+        "matcher": "Write(web/components/*|web/app/*|web/lib/*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /c/Users/user/projects/sui-dev-hub/web && npx tsc --noEmit 2>&1 | tail -10"
+          }
+        ]
+      }
+    ]
+  }
+}
