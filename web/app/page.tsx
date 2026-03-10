@@ -3,7 +3,6 @@
 import { ConnectButton, useCurrentAccount } from "@mysten/dapp-kit";
 import { PostList } from "@/components/PostList";
 import { ZkLoginButton } from "@/components/ZkLoginButton";
-import { TJPYCFaucet } from "@/components/TJPYCFaucet";
 import { useZkLogin } from "@/context/ZkLoginContext";
 import { useRouter } from "next/navigation";
 
@@ -29,7 +28,6 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <TJPYCFaucet />
             <ZkLoginButton />
             <ConnectButton />
           </div>

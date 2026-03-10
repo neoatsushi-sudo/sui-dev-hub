@@ -1,6 +1,7 @@
 [package]
 name = "sui_content_platform"
 edition = "2024.beta"
+published-at = "0x0ff874ccde9a069bd6506d71eefb44d420215ce39ae168fa8dbe2364a8a60b1a"
 
 [dependencies]
 Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "testnet-v1.67.1" }

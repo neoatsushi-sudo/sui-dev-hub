@@ -21,6 +21,8 @@ module sui_content_platform::platform {
     const READING_REWARD_MIST: u64 = 50_000_000;
     // v8: 投稿スタック最低額 1 SUI
     const STAKE_AMOUNT_MIST: u64 = 1_000_000_000;
+    // v9: 執筆報酬 0.1 SUI
+    const WRITING_REWARD_MIST: u64 = 100_000_000;
 
     // ===== Objects =====
 
@@ -633,6 +635,20 @@ module sui_content_platform::platform {
         amount: u64,
     }
 
+    // v9: Write-to-Earn
+    public struct WriteReceipt has key, store {
+        id: UID,
+        post_id: ID,
+        author: address,
+    }
+
+    public struct WritingRewardClaimed has copy, drop {
+        pool_id: ID,
+        post_id: ID,
+        author: address,
+        amount: u64,
+    }
+
     // ===== v8 Functions =====
 
     /// RewardPoolを作成してshared objectとして公開（デプロイ後に1回呼ぶ）
@@ -672,7 +688,7 @@ module sui_content_platform::platform {
         pool: &mut RewardPool,
         post: &Post,
         ctx: &mut TxContext,
-    ): ReadReceipt {
+    ) {
         assert!(
             balance::value(&pool.balance) >= READING_REWARD_MIST,
             EInsufficientPool
@@ -693,12 +709,18 @@ module sui_content_platform::platform {
             claimer: ctx.sender(),
             amount: READING_REWARD_MIST,
         });
+    }
 
-        ReadReceipt {
-            id: object::new(ctx),
-            post_id: object::id(post),
-            claimer: ctx.sender(),
-        }
+    /// create_post_staked: v8互換性のために保持（4パラメータ版）
+    public fun create_post_staked(
+        title: vector<u8>,
+        content_hash: vector<u8>,
+        deposit: Coin<SUI>,
+        ctx: &mut TxContext,
+    ) {
+        // v8当時のスタンドアロン版: デポジットを著者に返却し、通常の投稿を作成
+        transfer::public_transfer(deposit, ctx.sender());
+        create_post(title, content_hash, ctx);
     }
 
     /// Stake-to-Publish: プールへの入金付きで投稿（スパム対策）
@@ -755,6 +777,50 @@ module sui_content_platform::platform {
         });
         object::delete(id);
         transfer::public_transfer(coin, ctx.sender());
+    }
+
+    // ===== v9: Write-to-Earn =====
+
+    /// Write-to-Earn: 投稿者が自分の記事に対して執筆報酬を請求
+    /// 同一著者 × 同一記事は1回限り（ClaimKey dynamic fieldで重複防止）
+    public fun claim_writing_reward(
+        pool: &mut RewardPool,
+        post: &Post,
+        ctx: &mut TxContext,
+    ): WriteReceipt {
+        // 投稿者本人のみ請求可能
+        assert!(post.author == ctx.sender(), ENotAuthor);
+        // プール残高チェック
+        assert!(
+            balance::value(&pool.balance) >= WRITING_REWARD_MIST,
+            EInsufficientPool
+        );
+        // 重複請求の防止（オンチェーン）
+        let key = ClaimKey { post_id: object::id(post), claimer: ctx.sender() };
+        assert!(!dynamic_field::exists_(&pool.id, key), EAlreadyClaimed);
+        dynamic_field::add(&mut pool.id, key, true);
+
+        pool.total_claimed = pool.total_claimed + WRITING_REWARD_MIST;
+
+        // 報酬を著者へ送金
+        let reward_coin = coin::from_balance(
+            balance::split(&mut pool.balance, WRITING_REWARD_MIST),
+            ctx,
+        );
+        transfer::public_transfer(reward_coin, ctx.sender());
+
+        event::emit(WritingRewardClaimed {
+            pool_id: object::id(pool),
+            post_id: object::id(post),
+            author: ctx.sender(),
+            amount: WRITING_REWARD_MIST,
+        });
+
+        WriteReceipt {
+            id: object::new(ctx),
+            post_id: object::id(post),
+            author: ctx.sender(),
+        }
     }
 
     // ===== v8 View Functions =====

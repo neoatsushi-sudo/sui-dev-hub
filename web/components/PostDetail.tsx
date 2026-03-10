@@ -2,7 +2,7 @@
 
 import { useSuiClientQuery, useSignAndExecuteTransaction, useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
-import { PACKAGE_ID, TJPYC_COIN_TYPE } from "@/lib/sui";
+import { PACKAGE_ID, SUI_COIN_TYPE } from "@/lib/sui";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -14,6 +14,7 @@ import { CommentsSection } from "@/components/CommentsSection";
 import { LockAsPremiumButton } from "@/components/PremiumContent";
 import { RevenueShareSetup } from "@/components/RevenueSharing";
 import ReadToEarnButton from "@/components/ReadToEarnButton";
+import { WriteToEarnButton } from "@/components/WriteToEarnButton";
 
 const WALRUS_AGGREGATOR = "https://aggregator.walrus-testnet.walrus.space";
 
@@ -144,43 +145,22 @@ export default function PostDetail({ id }: { id: string }) {
   const handleTip = async () => {
     if (!account) return;
 
-    // Fetch TJPYC coins to pay 100 TJPYC (100 * 10^9)
-    const TIP_AMOUNT = 100 * 1_000_000_000;
-    const coins = await suiClient.getCoins({
-      owner: account.address,
-      coinType: TJPYC_COIN_TYPE,
-    });
-
-    const validCoins = coins.data;
-    if (validCoins.length === 0) {
-      alert("TJPYCが不足しています。上の「蛇口」ボタンから取得してください。");
-      return;
-    }
+    // 0.1 SUI チップ
+    const TIP_AMOUNT = 100_000_000; // 0.1 SUI in MIST
 
     const tx = new Transaction();
-
-    let paymentCoinId;
-    if (validCoins.length > 1) {
-      const primaryCoin = tx.object(validCoins[0].coinObjectId);
-      const restCoins = validCoins.slice(1).map(c => tx.object(c.coinObjectId));
-      tx.mergeCoins(primaryCoin, restCoins);
-      paymentCoinId = primaryCoin;
-    } else {
-      paymentCoinId = tx.object(validCoins[0].coinObjectId);
-    }
-
-    const [tipCoin] = tx.splitCoins(paymentCoinId, [tx.pure.u64(TIP_AMOUNT)]);
+    const [tipCoin] = tx.splitCoins(tx.gas, [tx.pure.u64(TIP_AMOUNT)]);
 
     if (configId) {
       tx.moveCall({
         target: `${PACKAGE_ID}::platform::tip_with_sharing_token`,
-        typeArguments: [TJPYC_COIN_TYPE],
+        typeArguments: [SUI_COIN_TYPE],
         arguments: [tx.object(id), tx.object(configId), tipCoin],
       });
     } else {
       tx.moveCall({
         target: `${PACKAGE_ID}::platform::tip_token`,
-        typeArguments: [TJPYC_COIN_TYPE],
+        typeArguments: [SUI_COIN_TYPE],
         arguments: [tx.object(id), tipCoin],
       });
     }
@@ -243,7 +223,7 @@ export default function PostDetail({ id }: { id: string }) {
           }`}>
             {suiNsName ? `🔷 ${displayName}` : displayName}
           </span>
-          <span className="text-purple-400 font-medium">· 💜 チップ獲得: {tipBalance.toLocaleString()} 円</span>
+          <span className="text-purple-400 font-medium">· 💜 チップ獲得: {tipBalance} SUI</span>
           {configId && (
             <span className="ml-2 flex items-center gap-1 text-[10px] bg-purple-900/40 border border-purple-800/50 text-purple-300 px-2 rounded-full">
               ✨ 収益分配 ON
@@ -264,6 +244,9 @@ export default function PostDetail({ id }: { id: string }) {
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
           )}
         </div>
+
+        {/* Write-to-Earn: 著者本人に表示 */}
+        <WriteToEarnButton postId={id} postAuthor={author} />
 
         {/* Read-to-Earn: 著者本人以外に表示 */}
         {!isAuthor && (account || session) && (
@@ -326,7 +309,7 @@ export default function PostDetail({ id }: { id: string }) {
               disabled={isPending}
               className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-medium px-5 py-2 rounded-full transition-all flex items-center gap-2"
             >
-              {isPending ? "送信中..." : "🎁 100円分サポートする"}
+              {isPending ? "送信中..." : "🎁 0.1 SUI サポートする"}
             </button>
           )}
           {isAuthor && (

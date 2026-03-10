@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "fetch.ts", "fetch_posts.js", "publish.mjs", "publish_articles.ts", "components/TJPYCFaucet.tsx"]
 }

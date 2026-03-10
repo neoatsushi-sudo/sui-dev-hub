@@ -61,11 +61,11 @@ Open http://localhost:3000 and connect your Sui wallet (Slush recommended).
 
 ## Roadmap
 
-- [ ] Walrus integration for decentralized content storage
-- [ ] Sponsored transactions (gasless UX for readers)
-- [ ] On-chain profiles
-- [ ] Tag/category system
-- [ ] Comment system
+- [x] Walrus integration for decentralized content storage
+- [x] Sponsored transactions (gasless UX for readers/writers using zkLogin)
+- [x] On-chain profiles
+- [x] Tag/category system
+- [x] Comment system
 
 ## License
 

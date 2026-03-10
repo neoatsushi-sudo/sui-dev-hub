@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import {
-  useSuiClient,
   useSignAndExecuteTransaction,
   useCurrentAccount,
+  useSuiClient,
   useSuiClientQuery,
 } from "@mysten/dapp-kit";
 import { Transaction } from "@mysten/sui/transactions";
@@ -12,10 +12,17 @@ import { PACKAGE_ID, REWARD_POOL_ID } from "@/lib/sui";
 import { useZkLogin } from "@/context/ZkLoginContext";
 import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
 
-export default function ReadToEarnButton({ postId }: { postId: string }) {
-  const suiClient = useSuiClient();
+const WRITING_REWARD_SUI = 0.1;
+
+interface WriteToEarnButtonProps {
+  postId: string;
+  postAuthor: string;
+}
+
+export function WriteToEarnButton({ postId, postAuthor }: WriteToEarnButtonProps) {
   const account = useCurrentAccount();
   const { session } = useZkLogin();
+  const suiClient = useSuiClient();
   const { mutate: signAndExecute, isPending: walletPending } =
     useSignAndExecuteTransaction();
   const [zkPending, setZkPending] = useState(false);
@@ -27,17 +34,20 @@ export default function ReadToEarnButton({ postId }: { postId: string }) {
   const currentAddress =
     account?.address ?? (session && !account ? session.address : null);
 
-  // ReadRewardClaimed イベントで受け取り済みか確認
+  // 投稿者本人でなければ表示しない
+  const isAuthor = currentAddress && currentAddress === postAuthor;
+
+  // WritingRewardClaimed イベントを検索して受け取り済みか確認
   const { data: claimEvents } = useSuiClientQuery(
     "queryEvents",
     {
       query: {
-        MoveEventType: `${PACKAGE_ID}::platform::ReadRewardClaimed`,
+        MoveEventType: `${PACKAGE_ID}::platform::WritingRewardClaimed`,
       },
       limit: 50,
       order: "descending",
     },
-    { enabled: !!currentAddress && !!postId }
+    { enabled: !!isAuthor && !!postId }
   );
 
   useEffect(() => {
@@ -45,12 +55,12 @@ export default function ReadToEarnButton({ postId }: { postId: string }) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const alreadyClaimed = claimEvents.data.some((e: any) => {
       const j = e.parsedJson;
-      return j?.post_id === postId && j?.claimer === currentAddress;
+      return j?.post_id === postId && j?.author === currentAddress;
     });
     if (alreadyClaimed) setClaimed(true);
   }, [claimEvents, currentAddress, postId]);
 
-  // RewardPool 残高チェック
+  // RewardPool の残高確認
   const { data: poolData } = useSuiClientQuery(
     "getObject",
     { id: REWARD_POOL_ID, options: { showContent: true } },
@@ -62,10 +72,11 @@ export default function ReadToEarnButton({ postId }: { postId: string }) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const fields = (poolData.data.content as any)?.fields;
     const balanceMist = Number(fields?.balance?.fields?.value ?? 0);
-    setPoolEmpty(balanceMist < 50_000_000);
+    setPoolEmpty(balanceMist < 100_000_000);
   }, [poolData]);
 
-  if (!currentAddress) return null;
+  // 著者以外・ウォレット未接続には表示しない
+  if (!isAuthor) return null;
   if (!REWARD_POOL_ID) return null;
 
   const handleClaim = async () => {
@@ -74,7 +85,7 @@ export default function ReadToEarnButton({ postId }: { postId: string }) {
 
     const tx = new Transaction();
     tx.moveCall({
-      target: `${PACKAGE_ID}::platform::claim_reading_reward`,
+      target: `${PACKAGE_ID}::platform::claim_writing_reward`,
       arguments: [tx.object(REWARD_POOL_ID), tx.object(postId)],
     });
 
@@ -102,15 +113,17 @@ export default function ReadToEarnButton({ postId }: { postId: string }) {
   };
 
   return (
-    <div className="mt-6 mb-2 p-4 rounded-xl border border-orange-800/50 bg-orange-950/20">
+    <div className="mt-6 mb-2 p-4 rounded-xl border border-emerald-800/50 bg-emerald-950/20">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <p className="text-orange-300 font-semibold text-sm mb-0.5">
-            Read-to-Earn
+          <p className="text-emerald-300 font-semibold text-sm mb-0.5">
+            Write-to-Earn
           </p>
           <p className="text-gray-400 text-xs">
-            この記事を読んだ報酬として{" "}
-            <span className="text-orange-400 font-bold">0.05 SUI</span>{" "}
+            この記事の執筆報酬として{" "}
+            <span className="text-emerald-400 font-bold">
+              {WRITING_REWARD_SUI} SUI
+            </span>{" "}
             を受け取れます
           </p>
           {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
@@ -127,8 +140,8 @@ export default function ReadToEarnButton({ postId }: { postId: string }) {
                 : poolEmpty
                 ? "bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed"
                 : isPending
-                ? "bg-orange-700/30 text-orange-400 border border-orange-700/50 opacity-70 cursor-wait"
-                : "bg-orange-600/20 hover:bg-orange-600/30 text-orange-300 border border-orange-600/40 hover:border-orange-500/60 active:scale-95"
+                ? "bg-emerald-700/30 text-emerald-400 border border-emerald-700/50 opacity-70 cursor-wait"
+                : "bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-600/40 hover:border-emerald-500/60 active:scale-95"
             }
           `}
         >
@@ -139,7 +152,7 @@ export default function ReadToEarnButton({ postId }: { postId: string }) {
           ) : poolEmpty ? (
             <>プール残高不足</>
           ) : (
-            <>読了報酬を受け取る</>
+            <>執筆報酬を受け取る</>
           )}
         </button>
       </div>
