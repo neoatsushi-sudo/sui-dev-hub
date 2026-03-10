@@ -18,3 +18,9 @@ Thumbs.db
 contracts/.sui/
 *.exe
 *.tgz
+
+# Temp scripts
+web/fetch.ts
+web/fetch_posts.js
+web/publish.mjs
+web/publish_articles.ts
