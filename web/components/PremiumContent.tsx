@@ -80,12 +80,12 @@ export function LockAsPremiumButton({ postId, onSuccess }: { postId: string; onS
             type="number"
             step="0.1"
             min="0.1"
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-amber-500"
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-3 pr-12 py-2 text-white text-sm outline-none focus:ring-2 focus:ring-amber-500"
             value={priceInput}
             onChange={(e) => setPriceInput(e.target.value)}
-            placeholder="500"
+            placeholder="0.5"
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">SUI</span>
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">SUI</span>
         </div>
         <button
           type="submit"
