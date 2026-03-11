@@ -31,7 +31,6 @@ export default function PostDetail({ id }: { id: string }) {
   const [content, setContent] = useState<string>("");
   const [contentLoading, setContentLoading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [likePending, setLikePending] = useState(false);
   const { toggleBookmark, isBookmarked } = useBookmarks();
   const isPending = walletPending || zkPending;
 
@@ -63,21 +62,6 @@ export default function PostDetail({ id }: { id: string }) {
   const readerCount = readEvents?.data
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ?.filter((e: any) => e.parsedJson?.post_id === id).length ?? 0;
-
-  // いいね数: PostLiked イベントをカウント
-  const { data: likeEvents } = useSuiClientQuery("queryEvents", {
-    query: { MoveEventType: `${PACKAGE_ID}::platform::PostLiked` },
-    limit: 50,
-    order: "descending",
-  });
-  const likeCount = likeEvents?.data
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ?.filter((e: any) => e.parsedJson?.post_id === id).length ?? 0;
-  // 自分が既にいいね済みか
-  const address = account?.address || session?.address;
-  const alreadyLiked = likeEvents?.data
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ?.some((e: any) => e.parsedJson?.post_id === id && e.parsedJson?.from === address) ?? false;
 
   // Must call all hooks before any early returns (Rules of Hooks)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -127,36 +111,8 @@ export default function PostDetail({ id }: { id: string }) {
     (account && account.address === author) ||
     (session && !account && session.address === author);
 
-  const handleSave = async () => {
-    // 1. localStorage に即時保存（個人ブックマーク）
+  const handleSave = () => {
     toggleBookmark(id, cleanTitle);
-
-    // 2. 既にオンチェーンいいね済みならスキップ
-    if (alreadyLiked || (!account && !session)) return;
-
-    const tx = new Transaction();
-    tx.moveCall({
-      target: `${PACKAGE_ID}::platform::like_post`,
-      arguments: [tx.object(id)],
-    });
-
-    if (session && !account) {
-      try {
-        setLikePending(true);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await zkLoginSponsoredSignAndExecute(session, tx, suiClient as any);
-      } catch (err) {
-        console.error("[Save] on-chain like failed (zkLogin):", err);
-      } finally {
-        setLikePending(false);
-      }
-      return;
-    }
-    if (account) {
-      signAndExecute({ transaction: tx }, {
-        onError: (err) => { console.error("[Save] on-chain like failed (wallet):", err); },
-      });
-    }
   };
 
   const handleTip = async () => {
@@ -253,9 +209,6 @@ export default function PostDetail({ id }: { id: string }) {
           {readerCount > 0 && (
             <span className="text-gray-500 text-xs">· {readerCount} readers</span>
           )}
-          {likeCount > 0 && (
-            <span className="text-gray-500 text-xs">· ★ {likeCount} saves</span>
-          )}
           <span className="text-purple-400 font-medium">· 💜 チップ獲得: {tipBalance} SUI</span>
           {configId && (
             <span className="ml-2 flex items-center gap-1 text-[10px] bg-purple-900/40 border border-purple-800/50 text-purple-300 px-2 rounded-full">
@@ -289,14 +242,13 @@ export default function PostDetail({ id }: { id: string }) {
           </button>
           <button
             onClick={handleSave}
-            disabled={likePending}
             className={`text-xs px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
-              isBookmarked(id) || alreadyLiked
+              isBookmarked(id)
                 ? "bg-yellow-900/40 text-yellow-300 border border-yellow-700/50"
                 : "bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white"
             }`}
           >
-            {likePending ? "..." : isBookmarked(id) || alreadyLiked ? `★ Saved${likeCount > 0 ? ` (${likeCount})` : ""}` : `☆ Save${likeCount > 0 ? ` (${likeCount})` : ""}`}
+            {isBookmarked(id) ? "★ Saved" : "☆ Save"}
           </button>
         </div>
 
