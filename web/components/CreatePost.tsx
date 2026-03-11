@@ -47,7 +47,13 @@ export function CreatePost() {
   const [draftSaved, setDraftSaved] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const autoResize = (el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = el.scrollHeight + "px";
+  };
 
   // 下書き復元（初回マウント時）
   useEffect(() => {
@@ -60,6 +66,10 @@ export function CreatePost() {
         if (draft.tags) setTags(draft.tags);
       }
     } catch { /* ignore */ }
+    // 下書き復元後にtextareaの高さを調整
+    requestAnimationFrame(() => {
+      if (textareaRef.current) autoResize(textareaRef.current);
+    });
   }, []);
 
   // 下書き自動保存（500ms デバウンス）
@@ -257,10 +267,14 @@ export function CreatePost() {
         </div>
       ) : (
         <textarea
-          className="w-full bg-gray-800 rounded-lg px-4 py-2 mb-3 text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500 h-28 resize-y"
+          ref={textareaRef}
+          className="w-full bg-gray-800 rounded-lg px-4 py-2 mb-3 text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500 min-h-28 resize-none overflow-hidden"
           placeholder="本文（Markdown対応）"
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            setContent(e.target.value);
+            autoResize(e.target);
+          }}
         />
       )}
 
