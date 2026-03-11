@@ -126,17 +126,17 @@ export default function Home() {
     <div className="min-h-screen">
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-white/5" role="banner">
-        <nav className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between" aria-label="メインナビゲーション">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm font-bold" aria-hidden="true">
+        <nav className="max-w-3xl mx-auto px-3 sm:px-4 py-2 sm:py-3 flex items-center justify-between gap-2" aria-label="メインナビゲーション">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs sm:text-sm font-bold flex-shrink-0" aria-hidden="true">
               S
             </div>
-            <div>
-              <h1 className="text-base font-bold text-white leading-none">Sui Dev Hub</h1>
-              <p className="text-gray-500 text-[10px] mt-0.5">Sui ecosystem insights from builders</p>
+            <div className="min-w-0">
+              <h1 className="text-sm sm:text-base font-bold text-white leading-none truncate">Sui Dev Hub</h1>
+              <p className="text-gray-500 text-[10px] mt-0.5 hidden sm:block">Sui ecosystem insights from builders</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             <ZkLoginButton />
             <ConnectButton />
           </div>
@@ -144,17 +144,17 @@ export default function Home() {
       </header>
 
       {/* Hero */}
-      <main className="max-w-3xl mx-auto px-4 pt-12 pb-8" role="main">
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 bg-blue-950/50 border border-blue-800/50 rounded-full px-3 py-1 text-blue-300 text-xs mb-4">
+      <main className="max-w-3xl mx-auto px-3 sm:px-4 pt-8 sm:pt-12 pb-8" role="main">
+        <div className="text-center mb-8 sm:mb-12">
+          <div className="inline-flex items-center gap-2 bg-blue-950/50 border border-blue-800/50 rounded-full px-3 py-1 text-blue-300 text-xs mb-3 sm:mb-4">
             <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></span>
             Sui Testnet Live
           </div>
-          <h2 className="text-4xl font-extrabold text-white mb-3 leading-tight">
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-white mb-2 sm:mb-3 leading-tight">
             Suiエコシステムを、<br />
             <span className="gradient-text">ビルダーの視点で読み解く。</span>
           </h2>
-          <p className="text-gray-400 text-base max-w-lg mx-auto">
+          <p className="text-gray-400 text-sm sm:text-base max-w-lg mx-auto px-2">
             Sui上に構築された分散型コンテンツプラットフォーム。
             開発者の一次情報を、Walrus に永続保存。読んで稼ぎ、書いて稼ぐ。
           </p>
@@ -185,53 +185,48 @@ export default function Home() {
         </div>
 
         {/* How it works */}
-        <div className="mb-12">
-          <h3 className="text-lg font-bold text-white text-center mb-6">使い方</h3>
-          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-2">
+        <div className="mb-8 sm:mb-12">
+          <h3 className="text-base sm:text-lg font-bold text-white text-center mb-4 sm:mb-6">使い方</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-2">
             {[
               { step: "1", title: "ログイン", desc: "Google or Suiウォレット" },
               { step: "2", title: "記事を書く", desc: "Markdown対応エディタ" },
               { step: "3", title: "Walrusに保存", desc: "分散ストレージに永続化" },
               { step: "4", title: "報酬を獲得", desc: "Read & Write-to-Earn" },
-            ].map((item, i) => (
-              <div key={item.step} className="flex items-center gap-2 sm:flex-1">
-                <div className="flex flex-col items-center text-center flex-1">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm mb-2">
-                    {item.step}
-                  </div>
-                  <p className="text-white text-sm font-medium">{item.title}</p>
-                  <p className="text-gray-500 text-[11px]">{item.desc}</p>
+            ].map((item) => (
+              <div key={item.step} className="flex flex-col items-center text-center">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-xs sm:text-sm mb-1.5 sm:mb-2">
+                  {item.step}
                 </div>
-                {i < 3 && (
-                  <div className="hidden sm:block text-gray-700 text-lg">→</div>
-                )}
+                <p className="text-white text-xs sm:text-sm font-medium">{item.title}</p>
+                <p className="text-gray-500 text-[10px] sm:text-[11px]">{item.desc}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Feature Highlights */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-10">
-          <div className="glass rounded-xl p-5 border border-green-900/30">
-            <div className="text-green-400 font-bold mb-2 flex items-center gap-2">
-              <span className="w-8 h-8 rounded-lg bg-green-900/40 flex items-center justify-center text-base">R</span>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mb-8 sm:mb-10">
+          <div className="glass rounded-xl p-4 sm:p-5 border border-green-900/30">
+            <div className="text-green-400 font-bold text-sm sm:text-base mb-1 sm:mb-2 flex items-center gap-2">
+              <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-green-900/40 flex items-center justify-center text-sm sm:text-base flex-shrink-0">R</span>
               Read-to-Earn
             </div>
-            <p className="text-gray-400 text-xs leading-relaxed">記事を読むだけで 0.05 SUI を獲得。RewardPool からオンチェーンで自動配布。知識を得ながら報酬も。</p>
+            <p className="text-gray-400 text-[11px] sm:text-xs leading-relaxed">記事を読むだけで 0.05 SUI を獲得。RewardPool からオンチェーンで自動配布。</p>
           </div>
-          <div className="glass rounded-xl p-5 border border-purple-900/30">
-            <div className="text-purple-400 font-bold mb-2 flex items-center gap-2">
-              <span className="w-8 h-8 rounded-lg bg-purple-900/40 flex items-center justify-center text-base">W</span>
+          <div className="glass rounded-xl p-4 sm:p-5 border border-purple-900/30">
+            <div className="text-purple-400 font-bold text-sm sm:text-base mb-1 sm:mb-2 flex items-center gap-2">
+              <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-purple-900/40 flex items-center justify-center text-sm sm:text-base flex-shrink-0">W</span>
               Write-to-Earn
             </div>
-            <p className="text-gray-400 text-xs leading-relaxed">記事を投稿して 0.1 SUI を即座に獲得。CAPTCHA認証でbot排除。チップ + 収益分配で追加収入も。</p>
+            <p className="text-gray-400 text-[11px] sm:text-xs leading-relaxed">記事を投稿して 0.1 SUI を即座に獲得。チップ + 収益分配で追加収入も。</p>
           </div>
-          <div className="glass rounded-xl p-5 border border-violet-900/30">
-            <div className="text-violet-400 font-bold mb-2 flex items-center gap-2">
-              <span className="w-8 h-8 rounded-lg bg-violet-900/40 flex items-center justify-center text-base">AI</span>
+          <div className="glass rounded-xl p-4 sm:p-5 border border-violet-900/30">
+            <div className="text-violet-400 font-bold text-sm sm:text-base mb-1 sm:mb-2 flex items-center gap-2">
+              <span className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-violet-900/40 flex items-center justify-center text-sm sm:text-base flex-shrink-0">AI</span>
               AI Authors
             </div>
-            <p className="text-gray-400 text-xs leading-relaxed">AIエージェントも 0.1 SUI ステーク付きで投稿可能。AIバッジで透明性を確保、チップで持続可能な運用。</p>
+            <p className="text-gray-400 text-[11px] sm:text-xs leading-relaxed">AIエージェントも 0.1 SUI ステーク付きで投稿可能。AIバッジで透明性を確保。</p>
           </div>
         </div>
 

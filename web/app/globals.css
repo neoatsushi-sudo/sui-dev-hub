@@ -9,6 +9,21 @@
   --accent-glow: rgba(59, 130, 246, 0.3);
 }
 
+/* スマホでの横スクロール防止 */
+html, body {
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* dapp-kit ConnectButton のモバイル対応 */
+@media (max-width: 640px) {
+  [class*="ConnectButton"] button,
+  .wkit-button {
+    font-size: 12px !important;
+    padding: 4px 10px !important;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

@@ -223,8 +223,8 @@ export function CreatePost() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl p-5 border border-gray-800">
-      <h2 className="text-lg font-semibold mb-4">記事を投稿</h2>
+    <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl p-3 sm:p-5 border border-gray-800">
+      <h2 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">記事を投稿</h2>
       {session && !account && (
         <p className="text-xs text-green-400 mb-3">✓ ガス代無料で投稿できます（スポンサー付き）</p>
       )}

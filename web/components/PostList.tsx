@@ -99,11 +99,11 @@ function PostCard({ post }: { post: Post }) {
       onCancel={() => setDeleteModalOpen(false)}
     />
     <div
-      className="bg-gray-900 rounded-xl p-5 border border-gray-800 cursor-pointer hover:border-gray-600 transition-colors"
+      className="bg-gray-900 rounded-xl p-3 sm:p-5 border border-gray-800 cursor-pointer hover:border-gray-600 transition-colors"
       onClick={() => router.push(`/post/${post.objectId}`)}
     >
-      <div className="flex items-center gap-2 mb-1">
-        <h3 className="text-white font-semibold text-lg flex-1">
+      <div className="flex items-start sm:items-center gap-2 mb-1">
+        <h3 className="text-white font-semibold text-sm sm:text-lg flex-1 line-clamp-2">
           {cleanTitle}
         </h3>
         {tags.includes("AI") && (
@@ -391,19 +391,19 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
     <div className="space-y-4">
       {/* Search, Sort & Tag Filter UI */}
       {!authorAddress && (
-        <div className="space-y-3">
-          <div className="flex gap-2">
+        <div className="space-y-2 sm:space-y-3">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="記事を検索..."
-              className="flex-1 bg-gray-900 border border-gray-800 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full sm:flex-1 bg-gray-900 border border-gray-800 rounded-lg px-3 sm:px-4 py-2 text-sm text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
-            <div className="flex bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
+            <div className="flex bg-gray-900 border border-gray-800 rounded-lg overflow-hidden flex-shrink-0">
               <button
                 onClick={() => { setSortBy("trending"); setShowSaved(false); }}
-                className={`px-3 py-2 text-xs font-medium transition-colors ${
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-medium transition-colors ${
                   sortBy === "trending" && !showSaved
                     ? "bg-blue-600 text-white"
                     : "text-gray-400 hover:text-white"
@@ -413,7 +413,7 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
               </button>
               <button
                 onClick={() => { setSortBy("newest"); setShowSaved(false); }}
-                className={`px-3 py-2 text-xs font-medium transition-colors ${
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-medium transition-colors ${
                   sortBy === "newest" && !showSaved
                     ? "bg-blue-600 text-white"
                     : "text-gray-400 hover:text-white"
@@ -423,7 +423,7 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
               </button>
               <button
                 onClick={() => { setSortBy("top"); setShowSaved(false); }}
-                className={`px-3 py-2 text-xs font-medium transition-colors ${
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-medium transition-colors ${
                   sortBy === "top" && !showSaved
                     ? "bg-blue-600 text-white"
                     : "text-gray-400 hover:text-white"
@@ -433,13 +433,13 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
               </button>
               <button
                 onClick={() => setShowSaved(!showSaved)}
-                className={`px-3 py-2 text-xs font-medium transition-colors ${
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-medium transition-colors ${
                   showSaved
                     ? "bg-yellow-600 text-white"
                     : "text-gray-400 hover:text-white"
                 }`}
               >
-                ★ 保存済み
+                ★ 保存
               </button>
             </div>
           </div>

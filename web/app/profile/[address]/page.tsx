@@ -28,21 +28,21 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen pb-20">
       {/* Basic Navigation */}
-      <nav className="sticky top-0 z-50 glass border-b border-white/5 py-3">
-        <div className="max-w-3xl mx-auto px-4">
-          <button onClick={() => router.push("/")} className="text-white hover:opacity-80 transition-opacity font-bold flex items-center gap-2">
-            <span className="text-xl">←</span> 戻る
+      <nav className="sticky top-0 z-50 glass border-b border-white/5 py-2 sm:py-3">
+        <div className="max-w-3xl mx-auto px-3 sm:px-4">
+          <button onClick={() => router.push("/")} className="text-white hover:opacity-80 transition-opacity font-bold flex items-center gap-2 text-sm sm:text-base">
+            <span className="text-lg sm:text-xl">←</span> 戻る
           </button>
         </div>
       </nav>
 
-      <div className="max-w-3xl mx-auto px-4 pt-8">
+      <div className="max-w-3xl mx-auto px-3 sm:px-4 pt-4 sm:pt-8">
         {/* Profile Card */}
-        <div className="bg-gray-900 rounded-2xl p-8 border border-gray-800 mb-10 text-center relative overflow-hidden">
+        <div className="bg-gray-900 rounded-2xl p-5 sm:p-8 border border-gray-800 mb-6 sm:mb-10 text-center relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-br from-blue-900/40 to-purple-900/40 opacity-30"></div>
           
           <div className="relative z-10 flex flex-col items-center">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 border-4 border-gray-900 shadow-xl mb-4 flex items-center justify-center text-4xl mt-4">
+            <div className="w-16 h-16 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-gray-700 to-gray-800 border-4 border-gray-900 shadow-xl mb-3 sm:mb-4 flex items-center justify-center text-2xl sm:text-4xl mt-2 sm:mt-4">
               {profile?.username ? profile.username.charAt(0).toUpperCase() : "👤"}
             </div>
             
@@ -53,7 +53,7 @@ export default function ProfilePage() {
               </div>
             ) : (
               <>
-                <h1 className="text-3xl font-bold text-white mb-2">
+                <h1 className="text-xl sm:text-3xl font-bold text-white mb-2">
                   {profile?.username || "名無しユーザー"}
                 </h1>
                 <p className="text-sm font-mono text-gray-400 bg-gray-800/50 px-3 py-1 rounded-full mb-4 inline-flex items-center gap-2">
