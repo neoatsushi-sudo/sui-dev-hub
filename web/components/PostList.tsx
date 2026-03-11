@@ -25,7 +25,7 @@ export type Post = {
 
 type SortOption = "newest" | "popular";
 
-function PostCard({ post }: { post: Post }) {
+function PostCard({ post, likeCount = 0 }: { post: Post; likeCount?: number }) {
   const account = useCurrentAccount();
   const { session } = useZkLogin();
   const suiClient = useSuiClient();
@@ -125,6 +125,7 @@ function PostCard({ post }: { post: Post }) {
         >
           {suiNsName ? `🔷 ${displayName}` : displayName}
         </span>
+        {likeCount > 0 && <span>· ★ {likeCount}</span>}
         <span>· {Number(fields.tip_balance) > 0 ? `💜 ${(Number(fields.tip_balance) / 1e9).toLocaleString()} SUI` : ""}</span>
       </p>
       <p className="text-gray-500 text-xs mb-4">記事を読む →</p>
@@ -261,6 +262,23 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [showSaved, setShowSaved] = useState(false);
   const { bookmarkedIds } = useBookmarks();
+
+  // いいね数集計用: PostLiked イベントを取得
+  const { data: likeEvents } = useSuiClientQuery("queryEvents", {
+    query: { MoveEventType: `${PACKAGE_ID}::platform::PostLiked` },
+    limit: 50,
+    order: "descending",
+  });
+  const likeCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!likeEvents?.data) return map;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const e of likeEvents.data as any[]) {
+      const postId = e.parsedJson?.post_id;
+      if (postId) map.set(postId, (map.get(postId) || 0) + 1);
+    }
+    return map;
+  }, [likeEvents]);
 
   const { data: objects, isLoading: isObjectsLoading } = useSuiClientQuery(
     "multiGetObjects",
@@ -434,7 +452,7 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
         </p>
       ) : (
         filteredPosts.map((post) => (
-          <PostCard key={post.objectId} post={post} />
+          <PostCard key={post.objectId} post={post} likeCount={likeCountMap.get(post.objectId) || 0} />
         ))
       )}
     </div>
