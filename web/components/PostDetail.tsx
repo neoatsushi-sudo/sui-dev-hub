@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
 import { useZkLogin } from "@/context/ZkLoginContext";
 import { zkLoginSponsoredSignAndExecute } from "@/lib/zklogin";
 import { useAuthorName } from "@/lib/profile";
@@ -294,6 +295,7 @@ export default function PostDetail({ id }: { id: string }) {
           ) : (
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeHighlight]}
               components={{
                 h2: ({ children, ...props }) => {
                   const headings = content.match(/^#{2,3}\s+.+$/gm) || [];

@@ -9,7 +9,22 @@
       "WebSearch",
       "WebFetch(domain:www.panewslab.com)",
       "WebFetch(domain:www.gate.com)",
-      "WebFetch(domain:www.cointribune.com)"
+      "WebFetch(domain:www.cointribune.com)",
+      "WebFetch(domain:sui-note.com)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:substack.com)",
+      "WebFetch(domain:dev.to)",
+      "WebFetch(domain:hashnode.com)",
+      "WebFetch(domain:zenn.dev)",
+      "WebFetch(domain:note.com)",
+      "WebFetch(domain:paragraph.xyz)",
+      "WebFetch(domain:mirror.xyz)",
+      "WebFetch(domain:matters.town)",
+      "WebFetch(domain:readon.me)",
+      "WebFetch(domain:news.ycombinator.com)",
+      "WebFetch(domain:www.reddit.com)",
+      "WebFetch(domain:paragraph.com)",
+      "WebFetch(domain:old.reddit.com)"
     ]
   },
   "hooks": {

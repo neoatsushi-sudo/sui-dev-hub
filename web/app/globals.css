@@ -82,6 +82,26 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
+/* Syntax Highlighting (GitHub Dark theme for rehype-highlight) */
+.hljs { background: #0d1117 !important; color: #e6edf3; }
+.hljs-keyword, .hljs-selector-tag { color: #ff7b72; }
+.hljs-literal, .hljs-number, .hljs-doctag { color: #79c0ff; }
+.hljs-string, .hljs-attr { color: #a5d6ff; }
+.hljs-title, .hljs-section, .hljs-selector-id { color: #d2a8ff; font-weight: 600; }
+.hljs-subst { color: #e6edf3; }
+.hljs-type, .hljs-class .hljs-title { color: #ffa657; }
+.hljs-tag, .hljs-name, .hljs-attribute { color: #7ee787; }
+.hljs-regexp, .hljs-link { color: #a5d6ff; }
+.hljs-symbol, .hljs-bullet { color: #ffa657; }
+.hljs-built_in, .hljs-builtin-name { color: #ffa657; }
+.hljs-meta { color: #8b949e; }
+.hljs-deletion { color: #ffa198; background: rgba(255,129,130,0.15); }
+.hljs-addition { color: #7ee787; background: rgba(63,185,80,0.15); }
+.hljs-comment { color: #8b949e; font-style: italic; }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: bold; }
+pre code.hljs { padding: 1em; border-radius: 0.5rem; overflow-x: auto; }
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: #030712; }

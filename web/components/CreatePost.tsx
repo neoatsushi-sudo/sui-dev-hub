@@ -2,6 +2,9 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useSignAndExecuteTransaction, useCurrentAccount, useSuiClient } from "@mysten/dapp-kit";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
 import { Transaction } from "@mysten/sui/transactions";
 import { PACKAGE_ID } from "@/lib/sui";
 import { useZkLogin } from "@/context/ZkLoginContext";
@@ -42,6 +45,7 @@ export function CreatePost() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [captchaVerified, setCaptchaVerified] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -220,12 +224,45 @@ export function CreatePost() {
         value={title}
         onChange={(e) => setTitle(e.target.value)}
       />
-      <textarea
-        className="w-full bg-gray-800 rounded-lg px-4 py-2 mb-3 text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500 h-28 resize-none"
-        placeholder="本文（Markdown対応）"
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-      />
+      {/* Write / Preview toggle */}
+      <div className="flex gap-1 mb-2">
+        <button
+          type="button"
+          onClick={() => setShowPreview(false)}
+          className={`text-xs px-3 py-1 rounded-t-lg transition-colors ${
+            !showPreview ? "bg-gray-800 text-white" : "bg-gray-900 text-gray-500 hover:text-gray-300"
+          }`}
+        >
+          Write
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowPreview(true)}
+          className={`text-xs px-3 py-1 rounded-t-lg transition-colors ${
+            showPreview ? "bg-gray-800 text-white" : "bg-gray-900 text-gray-500 hover:text-gray-300"
+          }`}
+        >
+          Preview
+        </button>
+      </div>
+      {showPreview ? (
+        <div className="w-full bg-gray-800 rounded-lg px-4 py-3 mb-3 min-h-[7rem] prose prose-invert prose-sm max-w-none prose-code:text-green-400 prose-code:bg-gray-900 prose-code:px-1 prose-code:rounded prose-pre:bg-gray-900 prose-pre:border prose-pre:border-gray-700">
+          {content ? (
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+              {content}
+            </ReactMarkdown>
+          ) : (
+            <p className="text-gray-500 text-sm">プレビューがここに表示されます</p>
+          )}
+        </div>
+      ) : (
+        <textarea
+          className="w-full bg-gray-800 rounded-lg px-4 py-2 mb-3 text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-blue-500 h-28 resize-y"
+          placeholder="本文（Markdown対応）"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+        />
+      )}
 
       {/* Tag Input */}
       <div className="mb-4">
