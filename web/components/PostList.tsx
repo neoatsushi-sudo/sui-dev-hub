@@ -23,7 +23,7 @@ export type Post = {
   };
 };
 
-type SortOption = "newest" | "popular";
+type SortOption = "trending" | "newest" | "top";
 
 function PostCard({ post }: { post: Post }) {
   const account = useCurrentAccount();
@@ -258,9 +258,26 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
   const { postIds, isEventsLoading } = useAllPostIds();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortOption>("newest");
+  const [sortBy, setSortBy] = useState<SortOption>("trending");
   const [showSaved, setShowSaved] = useState(false);
   const { bookmarkedIds } = useBookmarks();
+
+  // 閲覧数集計用: ReadRewardClaimed イベントを取得
+  const { data: readEvents } = useSuiClientQuery("queryEvents", {
+    query: { MoveEventType: `${PACKAGE_ID}::platform::ReadRewardClaimed` },
+    limit: 50,
+    order: "descending",
+  });
+  const readerCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!readEvents?.data) return map;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const e of readEvents.data as any[]) {
+      const postId = e.parsedJson?.post_id;
+      if (postId) map.set(postId, (map.get(postId) || 0) + 1);
+    }
+    return map;
+  }, [readEvents]);
 
   const { data: objects, isLoading: isObjectsLoading } = useSuiClientQuery(
     "multiGetObjects",
@@ -311,7 +328,15 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
     }
 
     // Sort
-    if (sortBy === "popular") {
+    if (sortBy === "trending") {
+      // Trending: readers数の降順（エンゲージメント指標）
+      filtered.sort((a, b) => {
+        const aReaders = readerCountMap.get(a.post.objectId) || 0;
+        const bReaders = readerCountMap.get(b.post.objectId) || 0;
+        return bReaders - aReaders;
+      });
+    } else if (sortBy === "top") {
+      // Top: チップ額順
       filtered.sort((a, b) =>
         Number(b.post.content.fields.tip_balance) - Number(a.post.content.fields.tip_balance)
       );
@@ -322,7 +347,7 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
       filteredPosts: filtered.map((p) => p.post),
       allTags: [...tagSet].sort(),
     };
-  }, [objects, authorAddress, searchQuery, selectedTag, sortBy, showSaved, bookmarkedIds]);
+  }, [objects, authorAddress, searchQuery, selectedTag, sortBy, showSaved, bookmarkedIds, readerCountMap]);
 
   if (isLoading) {
     return (
@@ -360,6 +385,16 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
             />
             <div className="flex bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
               <button
+                onClick={() => { setSortBy("trending"); setShowSaved(false); }}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${
+                  sortBy === "trending" && !showSaved
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                注目
+              </button>
+              <button
                 onClick={() => { setSortBy("newest"); setShowSaved(false); }}
                 className={`px-3 py-2 text-xs font-medium transition-colors ${
                   sortBy === "newest" && !showSaved
@@ -370,14 +405,14 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
                 新着
               </button>
               <button
-                onClick={() => { setSortBy("popular"); setShowSaved(false); }}
+                onClick={() => { setSortBy("top"); setShowSaved(false); }}
                 className={`px-3 py-2 text-xs font-medium transition-colors ${
-                  sortBy === "popular" && !showSaved
+                  sortBy === "top" && !showSaved
                     ? "bg-blue-600 text-white"
                     : "text-gray-400 hover:text-white"
                 }`}
               >
-                人気
+                Top
               </button>
               <button
                 onClick={() => setShowSaved(!showSaved)}
@@ -423,7 +458,7 @@ export function PostList({ authorAddress }: { authorAddress?: string } = {}) {
       )}
 
       <h2 className="text-lg font-semibold text-gray-200">
-        {sortBy === "popular" ? "人気記事" : "最新記事"}
+        {sortBy === "trending" ? "注目の記事" : sortBy === "top" ? "Top（チップ額順）" : "最新記事"}
         {selectedTag && <span className="text-blue-400 text-sm ml-2">#{selectedTag}</span>}
         {searchQuery.trim() && <span className="text-gray-500 text-sm ml-2">「{searchQuery.trim()}」の検索結果</span>}
       </h2>
