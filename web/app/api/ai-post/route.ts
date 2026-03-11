@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { PACKAGE_ID, REWARD_POOL_ID } from "@/lib/sui";
+import { rateLimit } from "@/lib/rateLimit";
 
 /**
  * AI記事投稿API
@@ -16,6 +17,16 @@ import { PACKAGE_ID, REWARD_POOL_ID } from "@/lib/sui";
  * Returns: { transaction: { target, arguments }, stakeRequired: true, stakeAmount: "100000000" }
  */
 export async function POST(req: Request) {
+  // レート制限: IP毎に1分間5回まで
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const { success, remaining } = rateLimit(`ai-post:${ip}`, { limit: 5, windowMs: 60_000 });
+  if (!success) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded. Try again later." },
+      { status: 429, headers: { "Retry-After": "60", "X-RateLimit-Remaining": "0" } }
+    );
+  }
+
   const { title, blobId } = await req.json();
 
   if (!title || !blobId) {

@@ -125,10 +125,10 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="sticky top-0 z-50 glass border-b border-white/5">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-50 glass border-b border-white/5" role="banner">
+        <nav className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between" aria-label="メインナビゲーション">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm font-bold">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm font-bold" aria-hidden="true">
               S
             </div>
             <div>
@@ -140,11 +140,11 @@ export default function Home() {
             <ZkLoginButton />
             <ConnectButton />
           </div>
-        </div>
+        </nav>
       </header>
 
       {/* Hero */}
-      <div className="max-w-3xl mx-auto px-4 pt-12 pb-8">
+      <main className="max-w-3xl mx-auto px-4 pt-12 pb-8" role="main">
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 bg-blue-950/50 border border-blue-800/50 rounded-full px-3 py-1 text-blue-300 text-xs mb-4">
             <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></span>
@@ -279,16 +279,16 @@ export default function Home() {
           </div>
           <PostList />
         </div>
-      </div>
+      </main>
 
       {/* Footer */}
-      <footer className="border-t border-white/5 mt-16 py-8">
+      <footer className="border-t border-white/5 mt-16 py-8" role="contentinfo">
         <div className="max-w-3xl mx-auto px-4 text-center space-y-3">
-          <div className="flex justify-center gap-6 text-gray-500 text-xs">
+          <nav className="flex justify-center gap-6 text-gray-500 text-xs" aria-label="フッターリンク">
             <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">GitHub</a>
             <a href="https://x.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">X / Twitter</a>
             <a href="https://sui.io" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Sui Network</a>
-          </div>
+          </nav>
           <p className="text-gray-600 text-xs">Built on Sui · Stored on Walrus · Open Source</p>
           <p className="text-gray-700 text-[10px]">*ガス代無料（Enoki スポンサード）</p>
         </div>
